@@ -23,22 +23,13 @@ class ProcessTestFailuresCommandTest {
                 + "no-failures/target/failsafe-reports/failsafe-summary.xml with no failures"), result.getOutput());
     }
 
-    // FIXME: remote following
-//    @Test
-//    @Launch("World")
-//    public void testLaunchCommand(LaunchResult result) {
-//        Assertions.assertTrue(result.getOutput().contains("Hello World"));
-//    }
-//
-//    @Test
-//    @Launch(value = {}, exitCode = 1)
-//    public void testLaunchCommandFailed() {
-//    }
-//
-//    @Test
-//    public void testManualLaunch(QuarkusMainLauncher launcher) {
-//        LaunchResult result = launcher.launch("Everyone");
-//        Assertions.assertEquals(0, result.exitCode());
-//        Assertions.assertTrue(result.getOutput().contains("Hello Everyone"));
-//    }
+    @Launch(value = {
+            "LOCAL_DIRECTORY", "src/test/resources/github-artifacts/mock-artifact"
+    }, exitCode = 1)
+    @Test
+    void testGitHubArtifactFailures(LaunchResult result) {
+        assertTrue(result.getOutput().contains("Looking for test failures"), result.getOutput());
+        assertTrue(result.getOutput().contains("Found 0 errors and 1 failures"), result.getOutput());
+    }
+
 }
