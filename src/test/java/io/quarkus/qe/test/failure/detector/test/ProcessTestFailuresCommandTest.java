@@ -3,16 +3,21 @@ package io.quarkus.qe.test.failure.detector.test;
 import io.quarkus.test.junit.main.Launch;
 import io.quarkus.test.junit.main.LaunchResult;
 import io.quarkus.test.junit.main.QuarkusMainTest;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
-@QuarkusMainTest
-public class ProcessTestFailuresCommandTest {
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
+@QuarkusMainTest
+class ProcessTestFailuresCommandTest {
+
+    /**
+     * In this directory (the current directory), there are no test failures.
+     * We expect command tries to find the failures and exit without issues.
+     */
     @Launch(".")
     @Test
-    public void testLaunchCommand(LaunchResult result) {
-        Assertions.assertTrue(result.getOutput().contains("Looking for test failures"));
+    void testNoTestFailures(LaunchResult result) {
+        assertTrue(result.getOutput().contains("Looking for test failures"));
     }
 
     // FIXME: remote following

@@ -10,6 +10,7 @@ import jakarta.inject.Inject;
 import picocli.CommandLine;
 
 import java.io.PrintWriter;
+import java.nio.file.Path;
 
 @CommandLine.Command
 public class ProcessTestFailuresCommand implements Runnable {
@@ -18,7 +19,7 @@ public class ProcessTestFailuresCommand implements Runnable {
     CommandLine.Model.CommandSpec spec;
 
     @CommandLine.Parameters(arity = "1", paramLabel = "TESTED_RPOJECT_DIR", description = "Root directory of a project with test results", defaultValue = ".")
-    String testedProjectDir;
+    Path testedProjectDir;
 
     @Inject
     FailuresAnalyzer failuresAnalyzer;
@@ -39,7 +40,8 @@ public class ProcessTestFailuresCommand implements Runnable {
     public void run() {
         consoleLogger.setWriters(spec.commandLine().getOut(), spec.commandLine().getErr());
 
-        outputChannel.process(failuresFinder.find()
+        outputChannel.process(failuresFinder
+                .find(testedProjectDir)
                 .stream()
                 .map(failuresAnalyzer::analyze)
                 .reduce(reportBuilderProvider.builder(), RootCauseReportBuilder::addRootCause, (b, _) -> b)

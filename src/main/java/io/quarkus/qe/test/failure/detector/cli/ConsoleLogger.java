@@ -1,11 +1,12 @@
 package io.quarkus.qe.test.failure.detector.cli;
 
+import io.quarkus.qe.test.failure.detector.logger.Logger;
 import jakarta.inject.Singleton;
 
 import java.io.PrintWriter;
 
 @Singleton
-public class ConsoleLogger {
+final class ConsoleLogger implements Logger {
 
     private PrintWriter stdOutWriter = null;
     private PrintWriter stdErrWriter = null;
