@@ -13,6 +13,6 @@ final class RootCauseReportBuilderProviderImpl implements RootCauseReportBuilder
     @Override
     public RootCauseReportBuilder builder() {
         // FIXME: impl. me!
-        return null;
+        return new RootCauseReportBuilderImpl();
     }
 }
