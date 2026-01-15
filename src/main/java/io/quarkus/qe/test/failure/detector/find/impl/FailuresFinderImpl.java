@@ -20,7 +20,10 @@ final class FailuresFinderImpl implements FailuresFinder {
     public Collection<Failure> find(Path testedProjectDir) {
         logger.info("Looking for test failures in directory: " + testedProjectDir.toAbsolutePath());
         // find failures
-        //  - source: e.g. GitHub
+        //  - project with test results: e.g. from GitHub
+        //    - download the project with test results
+        //    - parse failsafe reports
+        //    - transform it into Failure
         //  - output: Failure (dir, test, configuration [JDK version, mode - JVM/DEV/native/OCP], arguments [like db images, native builder etc.])
         return List.of();
     }

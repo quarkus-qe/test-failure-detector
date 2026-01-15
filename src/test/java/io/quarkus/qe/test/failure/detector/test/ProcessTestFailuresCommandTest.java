@@ -14,7 +14,7 @@ class ProcessTestFailuresCommandTest {
      * In this directory (the current directory), there are no test failures.
      * We expect command tries to find the failures and exit without issues.
      */
-    @Launch(".")
+    @Launch("LOCAL_DIRECTORY")
     @Test
     void testNoTestFailures(LaunchResult result) {
         assertTrue(result.getOutput().contains("Looking for test failures"));
