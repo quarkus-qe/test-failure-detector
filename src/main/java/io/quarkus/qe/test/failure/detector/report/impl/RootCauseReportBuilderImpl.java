@@ -9,7 +9,7 @@ final class RootCauseReportBuilderImpl implements RootCauseReportBuilder {
     @Override
     public RootCauseReportBuilder addRootCause(RootCause rootCause) {
         // FIXME: impl. me!
-        return null;
+        return this;
     }
 
     @Override

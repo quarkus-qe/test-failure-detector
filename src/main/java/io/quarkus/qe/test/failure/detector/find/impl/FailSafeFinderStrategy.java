@@ -152,7 +152,12 @@ final class FailSafeFinderStrategy implements FailuresFinderStrategy {
         // Find the module path by looking for pom.xml in parent directories
         String modulePath = findModulePath(reportFile);
 
-        return new FailureRecord(testClassName, testMethodName, modulePath, failureMessage, failureType, testRunLog);
+        // Determine if this is a failure or error based on the element tag name
+        Failure.FailureType type = failureElement.getTagName().equals("error")
+                ? Failure.FailureType.ERROR
+                : Failure.FailureType.FAILURE;
+
+        return new FailureRecord(testClassName, testMethodName, modulePath, failureMessage, type, failureType, testRunLog);
     }
 
     private static String findModulePath(Path reportFile) {
@@ -183,7 +188,19 @@ final class FailSafeFinderStrategy implements FailuresFinderStrategy {
             String testMethodName,
             String modulePath,
             String failureMessage,
-            String failureType,
+            Failure.FailureType failureType,
+            String throwableClass,
             String testRunLog) implements Failure {
+
+        @Override
+        public String toString() {
+            return "FailureRecord[" +
+                    "testClassName=" + testClassName +
+                    ", testMethodName=" + testMethodName +
+                    ", modulePath=" + modulePath +
+                    ", failureType=" + failureType +
+                    ", throwableClass=" + throwableClass +
+                    ']';
+        }
     }
 }

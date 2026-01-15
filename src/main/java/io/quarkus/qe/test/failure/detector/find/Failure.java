@@ -19,7 +19,9 @@ public interface Failure {
 
     String failureMessage();
 
-    String failureType();
+    FailureType failureType();
+
+    String throwableClass();
 
     String testRunLog();
 

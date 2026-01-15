@@ -25,7 +25,7 @@ class ProcessTestFailuresCommandTest {
 
     @Launch(value = {
             "LOCAL_DIRECTORY", "src/test/resources/github-artifacts/mock-artifact"
-    }, exitCode = 1)
+    })
     @Test
     void testGitHubArtifactFailures(LaunchResult result) {
         assertTrue(result.getOutput().contains("Looking for test failures"), result.getOutput());

@@ -50,7 +50,7 @@ class GitHubWorkflowProjectSourceTest {
         assertEquals("io.quarkus.ts.github.GitHubArtifactIT", failure.testClassName());
         assertEquals("testFromGitHub", failure.testMethodName());
         assertEquals("GitHub artifact test failed", failure.failureMessage());
-        assertEquals("java.lang.AssertionError", failure.failureType());
+        assertEquals(Failure.FailureType.FAILURE, failure.failureType());
         assertTrue(failure.testRunLog().contains("GitHubArtifactIT.java:30"));
     }
 

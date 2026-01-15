@@ -44,7 +44,7 @@ class FailSafeFinderStrategyTest {
         assertEquals("io.quarkus.ts.example.GreetingResourceIT", failure.testClassName());
         assertEquals("testFailingEndpoint", failure.testMethodName());
         assertEquals("Expected status code <200> but was <500>.", failure.failureMessage());
-        assertEquals("java.lang.AssertionError", failure.failureType());
+        assertEquals(Failure.FailureType.FAILURE, failure.failureType());
         assertTrue(failure.testRunLog().contains("AssertionError"));
         assertTrue(failure.modulePath().endsWith("single-module"));
     }
@@ -83,13 +83,13 @@ class FailSafeFinderStrategyTest {
 
         assertEquals(2, failures.size());
 
-        List<String> failureTypes = failures.stream()
+        List<Failure.FailureType> failureTypes = failures.stream()
                 .map(Failure::failureType)
                 .sorted()
                 .toList();
 
-        assertTrue(failureTypes.contains("java.lang.AssertionError"));
-        assertTrue(failureTypes.contains("java.lang.NullPointerException"));
+        assertTrue(failureTypes.contains(Failure.FailureType.FAILURE));
+        assertTrue(failureTypes.contains(Failure.FailureType.ERROR));
     }
 
     private Path getTestResourcePath(String resourcePath) throws URISyntaxException {
