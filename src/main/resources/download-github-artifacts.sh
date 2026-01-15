@@ -86,13 +86,34 @@ mkdir -p "$TEMP_DOWNLOAD_DIR"
 
 echo "Downloading artifacts to temporary directory '$TEMP_DOWNLOAD_DIR'"
 
-cd "$TEMP_DOWNLOAD_DIR"
+# Get list of artifacts for this run using GitHub API
+ARTIFACTS_JSON=$(gh api "repos/$REPO/actions/runs/$RUN_ID/artifacts" --jq '.artifacts')
 
-if ! gh run download "$RUN_ID" --repo "$REPO"; then
-    echo "Error: Failed to download artifacts from run $RUN_ID" >&2
+if [ -z "$ARTIFACTS_JSON" ] || [ "$ARTIFACTS_JSON" = "null" ]; then
+    echo "Error: No artifacts found for run $RUN_ID" >&2
     rm -rf "$TEMP_DOWNLOAD_DIR"
     exit 1
 fi
+
+# Download each artifact using curl (works better with snap than gh run download)
+echo "$ARTIFACTS_JSON" | jq -c '.[]' | while read -r artifact; do
+    ARTIFACT_NAME=$(echo "$artifact" | jq -r '.name')
+    ARTIFACT_ID=$(echo "$artifact" | jq -r '.id')
+
+    echo "Downloading artifact: $ARTIFACT_NAME (ID: $ARTIFACT_ID)"
+
+    # Create artifact directory
+    ARTIFACT_DIR="$TEMP_DOWNLOAD_DIR/$ARTIFACT_NAME"
+    mkdir -p "$ARTIFACT_DIR"
+
+    # Download using gh api
+    if ! gh api "repos/$REPO/actions/artifacts/$ARTIFACT_ID/zip" > "$ARTIFACT_DIR/$ARTIFACT_NAME.zip"; then
+        echo "Warning: Failed to download artifact $ARTIFACT_NAME" >&2
+        continue
+    fi
+
+    echo "Downloaded: $ARTIFACT_NAME"
+done
 
 echo "Successfully downloaded artifacts from run $RUN_ID"
 
@@ -103,12 +124,13 @@ for artifact_dir in "$TEMP_DOWNLOAD_DIR"/*; do
         artifact_name=$(basename "$artifact_dir")
         echo "Processing artifact: $artifact_name"
 
-        # Find and extract all zip files in this artifact directory
-        find "$artifact_dir" -name "*.zip" -o -name "*.tar.gz" -o -name "*.tgz" | while read -r archive; do
-            echo "  Extracting: $(basename "$archive")"
+        # GitHub API returns a zip containing another zip/tar, extract both levels
+        for archive in "$artifact_dir"/*.zip "$artifact_dir"/*.tar.gz "$artifact_dir"/*.tgz; do
+            [ -f "$archive" ] || continue
+            echo "  Extracting outer archive: $(basename "$archive")"
             case "$archive" in
                 *.zip)
-                    unzip -q "$archive" -d "$artifact_dir"
+                    unzip -q -o "$archive" -d "$artifact_dir"
                     rm "$archive"
                     ;;
                 *.tar.gz|*.tgz)
@@ -118,6 +140,23 @@ for artifact_dir in "$TEMP_DOWNLOAD_DIR"/*; do
             esac
         done
 
+        # Extract any nested archives that were inside
+        for archive in "$artifact_dir"/*.zip "$artifact_dir"/*.tar.gz "$artifact_dir"/*.tgz; do
+            [ -f "$archive" ] || continue
+            echo "  Extracting inner archive: $(basename "$archive")"
+            case "$archive" in
+                *.zip)
+                    unzip -q -o "$archive" -d "$artifact_dir"
+                    rm "$archive"
+                    ;;
+                *.tar.gz|*.tgz)
+                    tar -xzf "$archive" -C "$artifact_dir"
+                    rm "$archive"
+                    ;;
+            esac
+        done
+
+        echo "  Copying extracted files from $artifact_name to output directory"
         if [ -d "$artifact_dir" ]; then
             cp -r "$artifact_dir"/* "$OUTPUT_DIR/" 2>/dev/null || true
         fi
