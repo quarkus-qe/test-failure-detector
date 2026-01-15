@@ -8,7 +8,7 @@ import java.util.function.Function;
 
 public enum ProjectSource {
 
-    LOCAL_DIRECTORY(_ -> Path.of(".")), GITHUB_ACTION_ARTIFACTS(workflowLink -> Arc.requireContainer()
+    LOCAL_DIRECTORY(Path::of), GITHUB_ACTION_ARTIFACTS(workflowLink -> Arc.requireContainer()
             .select(GitHubWorkflowProjectSource.class).get().getProjectFailuresDir(workflowLink));
 
     private final Function<String, Path> argumentToPath;

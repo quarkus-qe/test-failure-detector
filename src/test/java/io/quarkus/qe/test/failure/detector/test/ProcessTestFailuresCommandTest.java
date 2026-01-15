@@ -11,13 +11,16 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class ProcessTestFailuresCommandTest {
 
     /**
-     * In this directory (the current directory), there are no test failures.
-     * We expect command tries to find the failures and exit without issues.
+     * In this directory (the current directory), there are test failures in test resources.
      */
-    @Launch("LOCAL_DIRECTORY")
+    @Launch(value = {
+            "LOCAL_DIRECTORY", "src/test/resources/failsafe-reports/no-failures"
+    })
     @Test
     void testNoTestFailures(LaunchResult result) {
-        assertTrue(result.getOutput().contains("Looking for test failures"));
+        assertTrue(result.getOutput().contains("Looking for test failures"), result.getOutput());
+        assertTrue(result.getOutput().contains("Found failsafe summary file src/test/resources/failsafe-reports/"
+                + "no-failures/target/failsafe-reports/failsafe-summary.xml with no failures"), result.getOutput());
     }
 
     // FIXME: remote following

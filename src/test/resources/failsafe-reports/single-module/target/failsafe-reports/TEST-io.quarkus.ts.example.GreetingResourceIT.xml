@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://maven.apache.org/surefire/maven-failsafe-plugin/xsd/failsafe-test-report.xsd" version="3.0.2" name="io.quarkus.ts.example.GreetingResourceIT" time="2.5" tests="1" errors="0" skipped="0" failures="1">
+  <testcase name="testFailingEndpoint" classname="io.quarkus.ts.example.GreetingResourceIT" time="2.5">
+    <failure message="Expected status code &lt;200&gt; but was &lt;500&gt;." type="java.lang.AssertionError">java.lang.AssertionError: Expected status code &lt;200&gt; but was &lt;500&gt;.
+	at io.restassured.internal.ValidatableResponseImpl.statusCode(ValidatableResponseImpl.java:125)
+	at io.quarkus.ts.example.GreetingResourceIT.testFailingEndpoint(GreetingResourceIT.java:23)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+</failure>
+  </testcase>
+</testsuite>

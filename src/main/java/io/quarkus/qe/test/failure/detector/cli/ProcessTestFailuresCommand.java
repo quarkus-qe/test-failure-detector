@@ -27,8 +27,9 @@ public class ProcessTestFailuresCommand implements Runnable {
 
     @CommandLine.Parameters(arity = "1", paramLabel = "PROJECT_SOURCE_ARGUMENT", description = """
             Arguments passed to the project source.
-            For the 'GITHUB_ACTION_ARTIFACTS' project source, this is a link to the project workflow.
-            """, defaultValue = "https://github.com/quarkus-qe/quarkus-test-suite/actions/workflows/daily.yaml")
+            For the 'GITHUB_ACTION_ARTIFACTS' project source, this should be a link to the project workflow,
+            for example "https://github.com/quarkus-qe/quarkus-test-suite/actions/workflows/daily.yaml"
+            """, defaultValue = ".")
     String projectSourceArgument;
 
     @Inject

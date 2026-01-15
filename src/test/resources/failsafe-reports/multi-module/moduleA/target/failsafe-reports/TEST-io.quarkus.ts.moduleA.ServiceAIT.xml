@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://maven.apache.org/surefire/maven-failsafe-plugin/xsd/failsafe-test-report.xsd" version="3.0.2" name="io.quarkus.ts.moduleA.ServiceAIT" time="1.2" tests="1" errors="0" skipped="0" failures="1">
+  <testcase name="testServiceA" classname="io.quarkus.ts.moduleA.ServiceAIT" time="1.2">
+    <failure message="Service returned unexpected result" type="java.lang.AssertionError">java.lang.AssertionError: Service returned unexpected result
+	at io.quarkus.ts.moduleA.ServiceAIT.testServiceA(ServiceAIT.java:15)
+</failure>
+  </testcase>
+</testsuite>

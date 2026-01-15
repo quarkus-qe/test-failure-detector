@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://maven.apache.org/surefire/maven-failsafe-plugin/xsd/failsafe-test-report.xsd" version="3.0.2" name="io.quarkus.ts.example.MixedIT" time="2.0" tests="2" errors="1" skipped="0" failures="1">
+  <testcase name="testWithFailure" classname="io.quarkus.ts.example.MixedIT" time="1.0">
+    <failure message="Assertion failed: values do not match" type="java.lang.AssertionError">java.lang.AssertionError: Assertion failed: values do not match
+	at org.junit.jupiter.api.AssertionUtils.fail(AssertionUtils.java:55)
+	at io.quarkus.ts.example.MixedIT.testWithFailure(MixedIT.java:25)
+</failure>
+  </testcase>
+  <testcase name="testWithError" classname="io.quarkus.ts.example.MixedIT" time="1.0">
+    <error message="Cannot invoke method on null object" type="java.lang.NullPointerException">java.lang.NullPointerException: Cannot invoke method on null object
+	at io.quarkus.ts.example.MixedIT.testWithError(MixedIT.java:30)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+</error>
+  </testcase>
+</testsuite>
