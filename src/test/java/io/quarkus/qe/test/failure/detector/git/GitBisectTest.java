@@ -19,7 +19,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * Test git repository with merge commits (similar to Quarkus structure).
  * This test verifies the repository can be used for git bisect scenarios.
  *
- * The test repo has ~33 commits with merge commits from feature branches.
+ * The test repo has ~34 commits with merge commits from feature branches.
  * Values change at different points: A -> B -> C -> D
  */
 // FIXME: this test doesn't make sense, but it should be transformed into using the command we are creating here
@@ -35,7 +35,7 @@ class GitBisectTest {
 
         // Get commit count
         String commitCount = runGitCommand(testRepo, "git", "rev-list", "--count", "HEAD").trim();
-        assertEquals("33", commitCount, "Should have 33 commits");
+        assertEquals("34", commitCount, "Should have 34 commits");
 
         // Verify we have merge commits
         String mergeCommitCount = runGitCommand(testRepo, "git", "rev-list", "--merges", "--count", "HEAD").trim();
