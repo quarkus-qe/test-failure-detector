@@ -17,7 +17,8 @@ record AnalyzedRootCause(
         String summary,
         RootCause.ConfidenceLevel confidence,
         List<FailureDetails> failures,
-        AnalysisMetadata metadata) implements RootCause {
+        AnalysisMetadata metadata,
+        UpstreamChange upstreamChange) implements RootCause {
 
     /**
      * Compact constructor to ensure immutable list.
@@ -35,6 +36,7 @@ record AnalyzedRootCause(
      * @param confidence confidence level
      * @param primaryFailure the primary failure details
      * @param metadata analysis metadata
+     * @param upstreamChange what has changed upstream
      * @return new AnalyzedRootCause instance
      */
     static AnalyzedRootCause create(
@@ -43,14 +45,16 @@ record AnalyzedRootCause(
             String summary,
             ConfidenceLevel confidence,
             FailureDetails primaryFailure,
-            AnalysisMetadata metadata) {
+            AnalysisMetadata metadata,
+            UpstreamChange upstreamChange) {
         return new AnalyzedRootCause(
                 identifier,
                 modulePath,
                 summary,
                 confidence,
                 List.of(primaryFailure),
-                metadata
+                metadata,
+                upstreamChange
         );
     }
 
@@ -70,7 +74,8 @@ record AnalyzedRootCause(
                 this.summary,
                 this.confidence,
                 updatedFailures,
-                this.metadata.addDedupedFailure()
+                this.metadata.addDedupedFailure(),
+                this.upstreamChange
         );
     }
 
@@ -80,6 +85,7 @@ record AnalyzedRootCause(
                 "identifier=" + identifier +
                 ", confidence=" + confidence +
                 ", failures=" + failures.size() +
+                ", upstreamChange=" + upstreamChange +
                 " (" + (failures.size() - metadata.dedupedFailures()) + " primary + " +
                 metadata.dedupedFailures() + " deduplicated)" +
                 ']';

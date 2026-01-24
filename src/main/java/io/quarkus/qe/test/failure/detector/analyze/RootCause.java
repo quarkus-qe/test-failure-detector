@@ -16,6 +16,11 @@ public interface RootCause {
 
     AnalysisMetadata metadata();
 
+    UpstreamChange upstreamChange();
+
+    record UpstreamChange(String gitCommitSHA, String prNumber, String gitCommitMessage) {
+    }
+
     /**
      * Confidence level of the root cause analysis.
      */

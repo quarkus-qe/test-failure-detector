@@ -1,9 +1,11 @@
 package io.quarkus.qe.test.failure.detector.analyze.impl;
 
 import io.quarkus.qe.test.failure.detector.analyze.AnalysisMetadata;
+import io.quarkus.qe.test.failure.detector.analyze.AnalysisMetadata.DeduplicationStrategy;
 import io.quarkus.qe.test.failure.detector.analyze.FailureDetails;
 import io.quarkus.qe.test.failure.detector.analyze.FailuresAnalyzer;
 import io.quarkus.qe.test.failure.detector.analyze.RootCause;
+import io.quarkus.qe.test.failure.detector.analyze.UpstreamChangeFinder;
 import io.quarkus.qe.test.failure.detector.find.Failure;
 import io.quarkus.qe.test.failure.detector.logger.Logger;
 import jakarta.enterprise.context.Dependent;
@@ -20,8 +22,11 @@ final class FailuresAnalyzerImpl implements FailuresAnalyzer {
 
     private final Map<String, AnalyzedRootCause> rootCausesByModule;
 
-    FailuresAnalyzerImpl(Logger logger) {
+    private final UpstreamChangeFinder upstreamChangeFinder;
+
+    FailuresAnalyzerImpl(Logger logger, UpstreamChangeFinder upstreamChangeFinder) {
         this.logger = logger;
+        this.upstreamChangeFinder = upstreamChangeFinder;
         this.rootCausesByClass = new HashMap<>();
         this.rootCausesByModule = new HashMap<>();
     }
@@ -70,21 +75,23 @@ final class FailuresAnalyzerImpl implements FailuresAnalyzer {
     private AnalyzedRootCause createNewRootCause(Failure failure) {
         // First occurrence = HIGH confidence (we're confident this is the primary failure)
         AnalyzedRootCause.ConfidenceLevel confidence = AnalyzedRootCause.ConfidenceLevel.HIGH;
-        AnalysisMetadata.DeduplicationStrategy strategy = AnalysisMetadata.DeduplicationStrategy.BY_CLASS;
+        DeduplicationStrategy deduplicationStrategy = DeduplicationStrategy.BY_CLASS;
 
-        String identifier = createIdentifier(failure, strategy);
+        String identifier = createIdentifier(failure, deduplicationStrategy);
         String summary = createSummary(failure);
         FailureDetails primaryFailure = FailureDetails.from(failure, true);
-        AnalysisMetadata metadata = AnalysisMetadata.create(strategy);
+        AnalysisMetadata metadata = AnalysisMetadata.create(deduplicationStrategy);
 
-        // FIXME: find the root cause!!!!!!!!!!!!!!
+        RootCause.UpstreamChange upstreamChange = upstreamChangeFinder.findUpstreamChange();
+
         AnalyzedRootCause rootCause = AnalyzedRootCause.create(
                 identifier,
                 failure.modulePath(),
                 summary,
                 confidence,
                 primaryFailure,
-                metadata
+                metadata,
+                upstreamChange
         );
 
         rootCausesByClass.put(failure.testClassName(), rootCause);
@@ -98,7 +105,7 @@ final class FailuresAnalyzerImpl implements FailuresAnalyzer {
     /**
      * Create a unique identifier for a root cause.
      */
-    private static String createIdentifier(Failure failure, AnalysisMetadata.DeduplicationStrategy strategy) {
+    private static String createIdentifier(Failure failure, DeduplicationStrategy strategy) {
         return switch (strategy) {
             case BY_CLASS -> "CLASS:" + failure.testClassName();
             case BY_MODULE -> "MODULE:" + failure.modulePath();
