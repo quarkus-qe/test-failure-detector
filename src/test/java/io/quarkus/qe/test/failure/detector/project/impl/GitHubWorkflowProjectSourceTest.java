@@ -2,7 +2,7 @@ package io.quarkus.qe.test.failure.detector.project.impl;
 
 import io.quarkus.qe.test.failure.detector.find.Failure;
 import io.quarkus.qe.test.failure.detector.find.FailuresFinder;
-import io.quarkus.qe.test.failure.detector.find.impl.TestLogger;
+import io.quarkus.qe.test.failure.detector.TestLogger;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.junit.QuarkusTestProfile;
 import io.quarkus.test.junit.TestProfile;

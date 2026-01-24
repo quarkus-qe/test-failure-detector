@@ -1,7 +1,6 @@
-package io.quarkus.qe.test.failure.detector.find.impl;
+package io.quarkus.qe.test.failure.detector;
 
 import io.quarkus.qe.test.failure.detector.logger.Logger;
-import io.quarkus.test.junit.QuarkusMock;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Alternative;
 

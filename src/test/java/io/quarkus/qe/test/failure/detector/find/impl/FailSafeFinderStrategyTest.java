@@ -1,9 +1,8 @@
 package io.quarkus.qe.test.failure.detector.find.impl;
 
+import io.quarkus.qe.test.failure.detector.TestLoggerProfile;
 import io.quarkus.qe.test.failure.detector.find.Failure;
-import io.quarkus.qe.test.failure.detector.logger.Logger;
 import io.quarkus.test.junit.QuarkusTest;
-import io.quarkus.test.junit.QuarkusTestProfile;
 import io.quarkus.test.junit.TestProfile;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.Test;
@@ -13,24 +12,15 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 @QuarkusTest
-@TestProfile(FailSafeFinderStrategyTest.TestLoggerProfile.class)
+@TestProfile(TestLoggerProfile.class)
 class FailSafeFinderStrategyTest {
 
     @Inject
     FailSafeFinderStrategy strategy;
-
-    public static class TestLoggerProfile implements QuarkusTestProfile {
-        @Override
-        public Set<Class<?>> getEnabledAlternatives() {
-            return Set.of(TestLogger.class);
-        }
-    }
 
     @Test
     void testFindFailuresInSingleModule() throws URISyntaxException {
