@@ -63,8 +63,7 @@ The pre-built binaries include all dependencies. For building from source, you n
   * export `GITHUB_TOKEN`
   * or authenticate with the [gh auth](https://cli.github.com/manual/gh_auth) command
 * git
-* GraalVM or Mandrel (for native compilation)
-* JDK 21+
+* JDK 25
 * Maven 3.9.9+
 
 ## Quick Start
