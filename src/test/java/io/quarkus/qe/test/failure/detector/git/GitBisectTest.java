@@ -80,17 +80,14 @@ class GitBisectTest {
      * Copy the test git repository from src/test/resources to a temporary directory.
      */
     private Path copyTestRepo(Path tempDir) throws Exception {
-        Path testRepoSource = Paths.get("src/test/resources/git-bisect-test").toAbsolutePath();
+        // Extract the test repository from tarball
+        Path tarball = Paths.get("src/test/resources/git-bisect-test.tar.gz").toAbsolutePath();
 
-        if (!Files.exists(testRepoSource)) {
-            throw new IOException("Test repository not found at: " + testRepoSource);
+        if (!Files.exists(tarball)) {
+            throw new IOException("Test repository tarball not found at: " + tarball);
         }
 
-        Path testRepoTarget = tempDir.resolve("git-bisect-test");
-
-        // Use cp -r to preserve the git repository structure including .git
-        ProcessBuilder pb = new ProcessBuilder("cp", "-r",
-                testRepoSource.toString(), tempDir.toString());
+        ProcessBuilder pb = new ProcessBuilder("tar", "-xzf", tarball.toString(), "-C", tempDir.toString());
         pb.redirectErrorStream(true);
         Process process = pb.start();
 
@@ -103,11 +100,13 @@ class GitBisectTest {
         int exitCode = process.waitFor();
 
         if (exitCode != 0) {
-            throw new IOException("Failed to copy test repository: " + output);
+            throw new IOException("Failed to extract test repository: " + output);
         }
 
+        Path testRepoTarget = tempDir.resolve("git-bisect-test");
+
         if (!Files.exists(testRepoTarget.resolve(".git"))) {
-            throw new IOException(".git directory not found in copied repo: " + testRepoTarget);
+            throw new IOException(".git directory not found in extracted repo: " + testRepoTarget);
         }
 
         return testRepoTarget;
