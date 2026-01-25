@@ -68,7 +68,14 @@ public class ProcessTestFailuresCommand implements Runnable {
             """, defaultValue = "failure-history.json")
     String historyFilePath;
 
-    @CommandLine.Option(order = 12, names = { "--bisect-strategy" }, description = """
+    @CommandLine.Option(order = 12, names = { "--output-file" }, description = """
+            Path where to save the failure analysis report.
+            If not specified, the report is only printed to stdout.
+            The report includes all detected failures, root causes, and upstream commits.
+            """)
+    String outputFilePath;
+
+    @CommandLine.Option(order = 13, names = { "--bisect-strategy" }, description = """
             Algorithm to use when bisecting commits to find the culprit:
             - BINARY: Binary search (faster, default) - logarithmic time complexity
             - LINEAR: Linear search from oldest to newest - predictable but slower
@@ -99,7 +106,7 @@ public class ProcessTestFailuresCommand implements Runnable {
     public void run() {
         consoleLogger.setWriters(spec.commandLine().getOut(), spec.commandLine().getErr(), debug);
 
-        appConfigEvent.fire(new AppConfig(lookbackDays, parseDate(from), historyFilePath, bisectStrategy));
+        appConfigEvent.fire(new AppConfig(lookbackDays, parseDate(from), historyFilePath, outputFilePath, bisectStrategy));
 
         Path projectWithPossibleTestFailures = projectSource.getTestedProjectDirectory(projectSourceArgument);
 
