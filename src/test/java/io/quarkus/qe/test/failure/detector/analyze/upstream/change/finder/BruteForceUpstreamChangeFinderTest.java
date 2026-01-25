@@ -6,6 +6,7 @@ import io.quarkus.qe.test.failure.detector.analyze.FailureHistory.HistoryData;
 import io.quarkus.qe.test.failure.detector.analyze.FailureHistory.TrackedFailure;
 import io.quarkus.qe.test.failure.detector.analyze.FailureHistory.TrackedFailure.FailureStatus;
 import io.quarkus.qe.test.failure.detector.analyze.RootCause;
+import io.quarkus.qe.test.failure.detector.configuration.AppConfig;
 import io.quarkus.qe.test.failure.detector.find.Failure;
 import io.quarkus.qe.test.failure.detector.logger.Logger;
 import io.quarkus.test.junit.QuarkusTest;
@@ -190,6 +191,188 @@ class BruteForceUpstreamChangeFinderTest {
                 "Old failure should be marked as RESOLVED");
     }
 
+    /**
+     * Test that binary search finds the failing commit.
+     */
+    @Test
+    void testBinarySearchFindsFailingCommit(@TempDir Path tempDir) throws Exception {
+        Path testRepo = copyTestRepo(tempDir);
+
+        HistoryData emptyHistory = HistoryData.empty();
+        MockFailureHistory mockHistory = new MockFailureHistory(emptyHistory);
+
+        MockFailure mockFailure = new MockFailure(
+                "io.quarkus.test.BinaryTest",
+                "testBinary",
+                tempDir.resolve("module").toString()
+        );
+
+        MockBruteForceUpstreamChangeFinder finder = new MockBruteForceUpstreamChangeFinder(
+                logger,
+                mockHistory,
+                testRepo
+        );
+        finder.setBisectStrategy(AppConfig.BisectStrategy.BINARY);
+
+        RootCause.UpstreamChange change = finder.findUpstreamChange(mockFailure);
+
+        assertNotNull(change, "Binary search should find upstream change");
+        assertNotNull(change.gitCommitSHA(), "Should have commit SHA");
+        logger.info("Binary search found failing commit: " + change.gitCommitSHA());
+
+        finder.finalizeAndSaveHistory();
+    }
+
+    /**
+     * Test that linear search finds the failing commit.
+     */
+    @Test
+    void testLinearSearchFindsFailingCommit(@TempDir Path tempDir) throws Exception {
+        Path testRepo = copyTestRepo(tempDir);
+
+        HistoryData emptyHistory = HistoryData.empty();
+        MockFailureHistory mockHistory = new MockFailureHistory(emptyHistory);
+
+        MockFailure mockFailure = new MockFailure(
+                "io.quarkus.test.LinearTest",
+                "testLinear",
+                tempDir.resolve("module").toString()
+        );
+
+        MockBruteForceUpstreamChangeFinder finder = new MockBruteForceUpstreamChangeFinder(
+                logger,
+                mockHistory,
+                testRepo
+        );
+        finder.setBisectStrategy(AppConfig.BisectStrategy.LINEAR);
+
+        RootCause.UpstreamChange change = finder.findUpstreamChange(mockFailure);
+
+        assertNotNull(change, "Linear search should find upstream change");
+        assertNotNull(change.gitCommitSHA(), "Should have commit SHA");
+        logger.info("Linear search found failing commit: " + change.gitCommitSHA());
+
+        finder.finalizeAndSaveHistory();
+    }
+
+    /**
+     * Test that both strategies find the same commit.
+     */
+    @Test
+    void testBinaryAndLinearFindSameCommit(@TempDir Path tempDir) throws Exception {
+        Path testRepo1 = copyTestRepo(tempDir.resolve("binary"));
+        Path testRepo2 = copyTestRepo(tempDir.resolve("linear"));
+
+        // Test with binary search
+        HistoryData emptyHistory1 = HistoryData.empty();
+        MockFailureHistory mockHistory1 = new MockFailureHistory(emptyHistory1);
+
+        MockFailure mockFailure1 = new MockFailure(
+                "io.quarkus.test.CompareTest",
+                "testCompare",
+                tempDir.resolve("module1").toString()
+        );
+
+        MockBruteForceUpstreamChangeFinder binaryFinder = new MockBruteForceUpstreamChangeFinder(
+                logger,
+                mockHistory1,
+                testRepo1
+        );
+        binaryFinder.setBisectStrategy(AppConfig.BisectStrategy.BINARY);
+
+        RootCause.UpstreamChange binaryChange = binaryFinder.findUpstreamChange(mockFailure1);
+        binaryFinder.finalizeAndSaveHistory();
+
+        // Test with linear search
+        HistoryData emptyHistory2 = HistoryData.empty();
+        MockFailureHistory mockHistory2 = new MockFailureHistory(emptyHistory2);
+
+        MockFailure mockFailure2 = new MockFailure(
+                "io.quarkus.test.CompareTest",
+                "testCompare",
+                tempDir.resolve("module2").toString()
+        );
+
+        MockBruteForceUpstreamChangeFinder linearFinder = new MockBruteForceUpstreamChangeFinder(
+                logger,
+                mockHistory2,
+                testRepo2
+        );
+        linearFinder.setBisectStrategy(AppConfig.BisectStrategy.LINEAR);
+
+        RootCause.UpstreamChange linearChange = linearFinder.findUpstreamChange(mockFailure2);
+        linearFinder.finalizeAndSaveHistory();
+
+        // Both should find the same commit
+        assertNotNull(binaryChange, "Binary search should find commit");
+        assertNotNull(linearChange, "Linear search should find commit");
+        assertEquals(binaryChange.gitCommitSHA(), linearChange.gitCommitSHA(),
+                "Binary and linear search should find the same commit");
+
+        logger.info("Both strategies found commit: " + binaryChange.gitCommitSHA());
+    }
+
+    /**
+     * Test that binary search tests fewer commits than linear.
+     */
+    @Test
+    void testBinarySearchIsMoreEfficient(@TempDir Path tempDir) throws Exception {
+        Path testRepo1 = copyTestRepo(tempDir.resolve("binary-eff"));
+        Path testRepo2 = copyTestRepo(tempDir.resolve("linear-eff"));
+
+        // Test with binary search
+        HistoryData emptyHistory1 = HistoryData.empty();
+        MockFailureHistory mockHistory1 = new MockFailureHistory(emptyHistory1);
+
+        MockFailure mockFailure1 = new MockFailure(
+                "io.quarkus.test.EfficiencyTest",
+                "testEfficiency",
+                tempDir.resolve("module1").toString()
+        );
+
+        MockBruteForceUpstreamChangeFinder binaryFinder = new MockBruteForceUpstreamChangeFinder(
+                logger,
+                mockHistory1,
+                testRepo1
+        );
+        binaryFinder.setBisectStrategy(AppConfig.BisectStrategy.BINARY);
+
+        binaryFinder.findUpstreamChange(mockFailure1);
+        binaryFinder.finalizeAndSaveHistory();
+
+        int binaryTestedCount = mockHistory1.load().testedCommits().size();
+
+        // Test with linear search
+        HistoryData emptyHistory2 = HistoryData.empty();
+        MockFailureHistory mockHistory2 = new MockFailureHistory(emptyHistory2);
+
+        MockFailure mockFailure2 = new MockFailure(
+                "io.quarkus.test.EfficiencyTest",
+                "testEfficiency",
+                tempDir.resolve("module2").toString()
+        );
+
+        MockBruteForceUpstreamChangeFinder linearFinder = new MockBruteForceUpstreamChangeFinder(
+                logger,
+                mockHistory2,
+                testRepo2
+        );
+        linearFinder.setBisectStrategy(AppConfig.BisectStrategy.LINEAR);
+
+        linearFinder.findUpstreamChange(mockFailure2);
+        linearFinder.finalizeAndSaveHistory();
+
+        int linearTestedCount = mockHistory2.load().testedCommits().size();
+
+        logger.info("Binary search tested " + binaryTestedCount + " commits");
+        logger.info("Linear search tested " + linearTestedCount + " commits");
+
+        // Binary should test significantly fewer commits
+        assertTrue(binaryTestedCount < linearTestedCount,
+                "Binary search should test fewer commits than linear (binary: " + binaryTestedCount +
+                        ", linear: " + linearTestedCount + ")");
+    }
+
     private Path copyTestRepo(Path tempDir) throws Exception {
         Path testRepo = tempDir.resolve("test-repo");
         Path sourceRepo = Paths.get("src/test/resources/git-bisect-test").toAbsolutePath();
@@ -236,9 +419,15 @@ class BruteForceUpstreamChangeFinderTest {
             // Set configuration manually for tests
             this.lookbackDays = 7;
             this.from = Instant.now();
+            this.bisectStrategy = AppConfig.BisectStrategy.BINARY; // Default to binary
             // Set the fake repository path
             this.quarkusRepoPath = mockRepo;
             this.testSuiteRepoPath = mockRepo; // Use same for simplicity
+        }
+
+        // Allow overriding the strategy for testing
+        void setBisectStrategy(AppConfig.BisectStrategy strategy) {
+            this.bisectStrategy = strategy;
         }
 
         @Override

@@ -53,6 +53,7 @@ class BruteForceUpstreamChangeFinder implements UpstreamChangeFinder {
 
     protected int lookbackDays;
     protected Instant from;
+    protected AppConfig.BisectStrategy bisectStrategy;
 
     // Stateful tracking for the current analysis session
     protected HistoryData previousHistory;
@@ -79,6 +80,7 @@ class BruteForceUpstreamChangeFinder implements UpstreamChangeFinder {
     void updateConfiguration(@Observes AppConfig appConfig) {
         this.lookbackDays = appConfig.lookbackDays();
         this.from = appConfig.from();
+        this.bisectStrategy = appConfig.bisectStrategy();
     }
 
     @Override
@@ -124,8 +126,11 @@ class BruteForceUpstreamChangeFinder implements UpstreamChangeFinder {
                     failure.modulePath()
             );
 
-            // Bisect to find the upstream commit
-            BisectResult result = bisectFailure(failure);
+            // For NEW failures, test commits since last run
+            // If this test was passing in the last run and failing now,
+            // it must have broken in the new commits since then
+            // All NEW failures share the same commit range (untestedCommits)
+            BisectResult result = bisectFailure(failure, untestedCommits);
 
             if (result.foundCommit()) {
                 logger.info("Found culprit commit: " + result.commit() + " (PR: " + result.pullRequest() + ")");
@@ -343,7 +348,10 @@ class BruteForceUpstreamChangeFinder implements UpstreamChangeFinder {
 
     /**
      * Get commits from the last tested commit to HEAD that haven't been tested yet.
-     * This is the range we need to bisect to find which commit introduced the failure.
+     * This is the range ALL NEW failures will be tested against.
+     *
+     * Logic: If a test was passing in the last run and failing now,
+     * it must have broken somewhere in the new commits since then.
      */
     private List<String> getUntestedCommits() {
         String lastTestedCommit = previousHistory.quarkusCommit();
@@ -401,19 +409,34 @@ class BruteForceUpstreamChangeFinder implements UpstreamChangeFinder {
 
     /**
      * Bisect a failure to find the commit that introduced it.
+     * Chooses between binary and linear search based on configuration.
      */
-    private BisectResult bisectFailure(Failure failure) {
+    private BisectResult bisectFailure(Failure failure, List<String> commitsToTest) {
+        if (bisectStrategy == AppConfig.BisectStrategy.BINARY) {
+            logger.info("Using BINARY search strategy for bisect");
+            return bisectFailureBinary(failure, commitsToTest);
+        } else {
+            logger.info("Using LINEAR search strategy for bisect");
+            return bisectFailureLinear(failure, commitsToTest);
+        }
+    }
+
+    /**
+     * Linear search from oldest to newest commit.
+     * Slower but predictable - tests every commit in order.
+     */
+    private BisectResult bisectFailureLinear(Failure failure, List<String> commitsToTest) {
         List<String> testedCommits = new ArrayList<>();
 
-        if (untestedCommits.isEmpty()) {
+        if (commitsToTest.isEmpty()) {
             logger.info("No commits to test for bisect");
             return new BisectResult(null, null, null, testedCommits);
         }
 
         // Start from the oldest commit (last in list) and work forward
-        for (int i = untestedCommits.size() - 1; i >= 0; i--) {
-            String commit = untestedCommits.get(i);
-            logger.info("Testing commit " + (untestedCommits.size() - i) + "/" + untestedCommits.size() + ": " + commit);
+        for (int i = commitsToTest.size() - 1; i >= 0; i--) {
+            String commit = commitsToTest.get(i);
+            logger.info("Testing commit " + (commitsToTest.size() - i) + "/" + commitsToTest.size() + ": " + commit);
 
             // Checkout commit
             runCommand(quarkusRepo, "git", "checkout", commit);
@@ -441,6 +464,127 @@ class BruteForceUpstreamChangeFinder implements UpstreamChangeFinder {
         }
 
         logger.info("Test passes on all commits, failure might be in test suite itself");
+        return new BisectResult(null, null, null, testedCommits);
+    }
+
+    /**
+     * Binary search to find the first failing commit.
+     * Significantly faster than linear - O(log n) instead of O(n).
+     * Falls back to linear search if too many build failures occur.
+     */
+    private BisectResult bisectFailureBinary(Failure failure, List<String> commitsToTest) {
+        List<String> testedCommits = new ArrayList<>();
+        int buildFailureCount = 0;
+        final int MAX_BUILD_FAILURES = 3; // Fall back to linear after 3 build failures
+
+        if (commitsToTest.isEmpty()) {
+            logger.info("No commits to test for bisect");
+            return new BisectResult(null, null, null, testedCommits);
+        }
+
+        // Binary search: low = oldest (should pass), high = newest (should fail)
+        // Note: commitsToTest are in reverse chronological order (newest first)
+        int low = commitsToTest.size() - 1;  // oldest commit index
+        int high = 0;  // newest commit index
+
+        logger.info("Binary search range: " + commitsToTest.size() + " commits");
+
+        while (low > high) {
+            int mid = high + (low - high) / 2;
+            String commit = commitsToTest.get(mid);
+
+            logger.info("Binary search: testing commit at index " + mid + " (range: " + high + "-" + low + "): " + commit);
+
+            // Checkout commit
+            runCommand(quarkusRepo, "git", "checkout", commit);
+            testedCommits.add(commit);
+
+            // Build Quarkus
+            boolean buildSuccess = buildQuarkus();
+            if (!buildSuccess) {
+                logger.info("Build failed for commit " + commit);
+                buildFailureCount++;
+
+                if (buildFailureCount >= MAX_BUILD_FAILURES) {
+                    logger.info("Too many build failures (" + buildFailureCount + "), falling back to LINEAR search");
+                    return bisectFailureLinear(failure, commitsToTest);
+                }
+
+                // Try to work around build failure by testing adjacent commit
+                // If we're searching in the "newer" half, try one commit older
+                // If we're searching in the "older" half, try one commit newer
+                if (mid > (high + low) / 2 && mid < commitsToTest.size() - 1) {
+                    // Try older commit (mid + 1)
+                    logger.info("Trying adjacent older commit...");
+                    mid = mid + 1;
+                } else if (mid > high) {
+                    // Try newer commit (mid - 1)
+                    logger.info("Trying adjacent newer commit...");
+                    mid = mid - 1;
+                } else {
+                    // Can't work around, narrow the search range and continue
+                    logger.info("Skipping unbuildable commit, narrowing search range");
+                    low = mid - 1;
+                    continue;
+                }
+
+                commit = commitsToTest.get(mid);
+                logger.info("Testing adjacent commit at index " + mid + ": " + commit);
+                runCommand(quarkusRepo, "git", "checkout", commit);
+                testedCommits.add(commit);
+
+                buildSuccess = buildQuarkus();
+                if (!buildSuccess) {
+                    logger.info("Adjacent commit also failed to build, narrowing range");
+                    low = mid - 1;
+                    continue;
+                }
+            }
+
+            // Run the test
+            boolean testPassed = runTest(failure);
+
+            if (testPassed) {
+                // Test passed, so failure is in newer commits (lower indices)
+                logger.info("Test PASSED at commit: " + commit);
+                low = mid - 1;
+            } else {
+                // Test failed, so this could be the culprit or it's in older commits (higher indices)
+                logger.info("Test FAILED at commit: " + commit);
+
+                if (mid == low) {
+                    // Found the first failing commit
+                    logger.info("Found first failing commit: " + commit);
+                    String pullRequest = findPullRequest(commit);
+                    String commitMessage = getCommitMessage(quarkusRepo, commit);
+                    return new BisectResult(commit, pullRequest, commitMessage, testedCommits);
+                }
+
+                high = mid;
+            }
+        }
+
+        // If we exit the loop, low == high, test that commit
+        if (low >= 0 && low < commitsToTest.size()) {
+            String commit = commitsToTest.get(low);
+            logger.info("Final commit to test at index " + low + ": " + commit);
+
+            runCommand(quarkusRepo, "git", "checkout", commit);
+            testedCommits.add(commit);
+
+            boolean buildSuccess = buildQuarkus();
+            if (buildSuccess) {
+                boolean testPassed = runTest(failure);
+                if (!testPassed) {
+                    logger.info("Found first failing commit: " + commit);
+                    String pullRequest = findPullRequest(commit);
+                    String commitMessage = getCommitMessage(quarkusRepo, commit);
+                    return new BisectResult(commit, pullRequest, commitMessage, testedCommits);
+                }
+            }
+        }
+
+        logger.info("Binary search completed - test passes on all tested commits, failure might be in test suite itself");
         return new BisectResult(null, null, null, testedCommits);
     }
 
