@@ -1,6 +1,6 @@
 package io.quarkus.qe.test.failure.detector.analyze.impl;
 
-import io.quarkus.qe.test.failure.detector.TestLoggerProfile;
+import io.quarkus.qe.test.failure.detector.TestBeanProfile;
 import io.quarkus.qe.test.failure.detector.analyze.FailuresAnalyzer;
 import io.quarkus.qe.test.failure.detector.analyze.RootCause;
 import io.quarkus.qe.test.failure.detector.find.Failure;
@@ -18,7 +18,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 
 @QuarkusTest
-@TestProfile(TestLoggerProfile.class)
+@TestProfile(TestBeanProfile.class)
 class FailuresAnalyzerImplTest {
 
     @Inject

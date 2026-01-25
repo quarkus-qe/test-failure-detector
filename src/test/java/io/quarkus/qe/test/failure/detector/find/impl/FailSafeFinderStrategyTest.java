@@ -1,6 +1,6 @@
 package io.quarkus.qe.test.failure.detector.find.impl;
 
-import io.quarkus.qe.test.failure.detector.TestLoggerProfile;
+import io.quarkus.qe.test.failure.detector.TestBeanProfile;
 import io.quarkus.qe.test.failure.detector.find.Failure;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.junit.TestProfile;
@@ -16,7 +16,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 
 @QuarkusTest
-@TestProfile(TestLoggerProfile.class)
+@TestProfile(TestBeanProfile.class)
 class FailSafeFinderStrategyTest {
 
     @Inject

@@ -17,4 +17,9 @@ public class TestLogger implements Logger {
     public void error(String logMessage) {
         System.err.println("ERROR: " + logMessage);
     }
+
+    @Override
+    public void debug(String logMessage) {
+        System.out.println(logMessage);
+    }
 }

@@ -82,7 +82,7 @@ final class FailuresAnalyzerImpl implements FailuresAnalyzer {
         FailureDetails primaryFailure = FailureDetails.from(failure, true);
         AnalysisMetadata metadata = AnalysisMetadata.create(deduplicationStrategy);
 
-        RootCause.UpstreamChange upstreamChange = upstreamChangeFinder.findUpstreamChange();
+        RootCause.UpstreamChange upstreamChange = upstreamChangeFinder.findUpstreamChange(failure);
 
         AnalyzedRootCause rootCause = AnalyzedRootCause.create(
                 identifier,
