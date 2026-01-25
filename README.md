@@ -8,31 +8,83 @@ This CLI tool can be used to:
 * bisect [Quarkus git project](https://github.com/quarkusio/quarkus.git) and determine which git commit caused the failure
 * report the bisect result
 
+## Installation
+
+### Download Pre-built Binary (Recommended)
+
+Download the latest binary executable for your operating system from the [releases page](https://github.com/quarkus-qe/test-failure-detector/releases):
+
+**Linux (x86_64):**
+```bash
+# Download the binary
+curl -L -o test-failure-detector https://github.com/quarkus-qe/test-failure-detector/releases/latest/download/test-failure-detector-linux-x86_64
+
+# Make it executable
+chmod +x test-failure-detector
+
+# Move to a directory in your PATH (optional)
+sudo mv test-failure-detector /usr/local/bin/
+```
+
+**macOS (Apple Silicon M-series):**
+```bash
+# Download the binary
+curl -L -o test-failure-detector https://github.com/quarkus-qe/test-failure-detector/releases/latest/download/test-failure-detector-macos-aarch64
+
+# Make it executable
+chmod +x test-failure-detector
+
+# Move to a directory in your PATH (optional)
+sudo mv test-failure-detector /usr/local/bin/
+```
+
+After installation, verify it works:
+```bash
+test-failure-detector --help
+```
+
+### Build from Source
+
+If you prefer to build from source:
+
+```bash
+git clone https://github.com/quarkus-qe/test-failure-detector.git
+cd test-failure-detector
+./mvnw package -Dnative
+# Binary will be at: target/test-failure-detector-*-runner
+```
+
 ### Prerequisites
+
+The pre-built binaries include all dependencies. For building from source, you need:
 
 * [GitHub CLI](https://cli.github.com/)
 * valid GitHub credentials with read permissions to the GitHub project with the tested workflow and Quarkus GitHub project:
   * export `GITHUB_TOKEN`
   * or authenticate with the [gh auth](https://cli.github.com/manual/gh_auth) command
 * git
-* Quarkus CLI
-* JDK 25
+* GraalVM or Mandrel (for native compilation)
+* JDK 21+
 * Maven 3.9.9+
 
-### Example usage
+## Quick Start
 
-#### Example usage for a specific workflow run
+### Example usage for a specific workflow run
 
 ```bash
-quarkus build --native
-./target/test-failure-detector-999-SNAPSHOT-runner GITHUB_ACTION_ARTIFACTS https://github.com/quarkus-qe/quarkus-test-suite/actions/runs/20946183562
+test-failure-detector GITHUB_ACTION_ARTIFACTS https://github.com/quarkus-qe/quarkus-test-suite/actions/runs/20946183562
 ```
 
-#### Example usage for a specific workflow
+### Example usage for a specific workflow
 
 ```bash
-quarkus build --native
-./target/test-failure-detector-999-SNAPSHOT-runner GITHUB_ACTION_ARTIFACTS https://github.com/quarkus-qe/quarkus-test-suite/actions/workflows/daily.yaml
+test-failure-detector GITHUB_ACTION_ARTIFACTS https://github.com/quarkus-qe/quarkus-test-suite/actions/workflows/daily.yaml
+```
+
+### Example usage for local test results
+
+```bash
+test-failure-detector LOCAL_DIRECTORY target/failsafe-reports
 ```
 
 ### Command-Line Options
@@ -40,7 +92,7 @@ quarkus build --native
 The tool supports various options to customize the failure detection and analysis:
 
 ```bash
-./test-failure-detector [PROJECT_SOURCE_TYPE] [PROJECT_SOURCE] [OPTIONS]
+test-failure-detector [PROJECT_SOURCE_TYPE] [PROJECT_SOURCE] [OPTIONS]
 ```
 
 #### Project Source Types
@@ -78,13 +130,13 @@ The tool supports various options to customize the failure detection and analysi
 #### Analyze local test failures and save report to file
 
 ```bash
-./test-failure-detector LOCAL_DIRECTORY target/failsafe-reports --output-file=failure-report.txt
+test-failure-detector LOCAL_DIRECTORY target/failsafe-reports --output-file=failure-report.txt
 ```
 
 #### Analyze GitHub workflow with custom lookback period
 
 ```bash
-./test-failure-detector GITHUB_ACTION_ARTIFACTS \
+test-failure-detector GITHUB_ACTION_ARTIFACTS \
   https://github.com/quarkus-qe/quarkus-test-suite/actions/workflows/daily.yaml \
   --lookback-days=14 \
   --output-file=reports/$(date +%Y-%m-%d)-failures.txt
@@ -94,7 +146,7 @@ The tool supports various options to customize the failure detection and analysi
 
 ```bash
 # Check failures between Jan 1 and Jan 15, 2026
-./test-failure-detector LOCAL_DIRECTORY target/failsafe-reports \
+test-failure-detector LOCAL_DIRECTORY target/failsafe-reports \
   --from=2026-01-15 \
   --lookback-days=14 \
   --bisect-strategy=BINARY
@@ -103,7 +155,7 @@ The tool supports various options to customize the failure detection and analysi
 #### Use linear search strategy (for debugging)
 
 ```bash
-./test-failure-detector LOCAL_DIRECTORY target/failsafe-reports \
+test-failure-detector LOCAL_DIRECTORY target/failsafe-reports \
   --bisect-strategy=LINEAR
 ```
 
@@ -111,7 +163,7 @@ The tool supports various options to customize the failure detection and analysi
 
 ```bash
 # Run daily, tracking history and identifying new failures
-./test-failure-detector GITHUB_ACTION_ARTIFACTS \
+test-failure-detector GITHUB_ACTION_ARTIFACTS \
   https://github.com/quarkus-qe/quarkus-test-suite/actions/workflows/daily.yaml \
   --history-file=daily-history.json \
   --output-file=reports/daily-$(date +%Y-%m-%d).txt \
@@ -130,6 +182,21 @@ The tool supports various options to customize the failure detection and analysi
    - Identifies the first commit where the test fails
 5. **Reporting**: Generates a detailed report with upstream commits and PR numbers
 
-## GitHub Workflow
+## Creating a Release
 
-TODO
+To create a new release:
+
+1. Go to the [Actions tab](https://github.com/quarkus-qe/test-failure-detector/actions/workflows/release.yaml)
+2. Click "Run workflow"
+3. Enter the version number (e.g., `1.2.0`)
+4. Optionally add release notes
+5. Click "Run workflow"
+
+The workflow will automatically:
+- Update the version in pom.xml
+- Commit and push the change
+- Create a git tag
+- Create a GitHub release
+- Trigger native executable builds for Linux x86_64, and macOS aarch64
+
+The native executables will be uploaded as release assets within a few minutes.

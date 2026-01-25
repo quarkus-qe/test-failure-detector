@@ -1,0 +1,77 @@
+name: Create Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., 1.2.0)'
+        required: true
+        type: string
+      release_notes:
+        description: 'Release notes (optional)'
+        required: false
+        type: string
+        default: ''
+
+permissions:
+  contents: write
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v6
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Install JDK 25
+      uses: actions/setup-java@v5
+      with:
+        distribution: 'temurin'
+        java-version: 25
+        check-latest: true
+        cache: 'maven'
+
+    - name: Configure Git
+      run: |
+        gh auth setup-git
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GH_REPO: ${{ github.repository }}
+
+    - name: Update version in pom.xml
+      run: |
+        mvn versions:set -DnewVersion=${{ inputs.version }}
+        mvn versions:commit
+
+    - name: Commit and push version change
+      run: |
+        git add pom.xml
+        git commit -m "Bump version to ${{ inputs.version }}"
+        git push
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Create tag and push to GitHub
+      run: |
+        git tag -a "v${{ inputs.version }}" -m "Release version ${{ inputs.version }}"
+        git push origin "v${{ inputs.version }}"
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Create GitHub release
+      run: |
+        if [ -n "${{ inputs.release_notes }}" ]; then
+          gh release create "v${{ inputs.version }}" \
+            --title "v${{ inputs.version }}" \
+            --notes "${{ inputs.release_notes }}"
+        else
+          gh release create "v${{ inputs.version }}" \
+            --title "v${{ inputs.version }}" \
+            --generate-notes
+        fi
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
