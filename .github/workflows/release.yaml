@@ -19,6 +19,8 @@ permissions:
 jobs:
   create-release:
     runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
 
     steps:
     - uses: actions/checkout@v6
@@ -63,6 +65,7 @@ jobs:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Create GitHub release
+      id: create_release
       run: |
         if [ -n "${{ inputs.release_notes }}" ]; then
           gh release create "v${{ inputs.version }}" \
@@ -73,5 +76,63 @@ jobs:
             --title "v${{ inputs.version }}" \
             --generate-notes
         fi
+
+        # Get the upload URL for assets
+        upload_url=$(gh api repos/${{ github.repository }}/releases/tags/v${{ inputs.version }} --jq .upload_url)
+        echo "upload_url=${upload_url}" >> $GITHUB_OUTPUT
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-native-executables:
+    needs: create-release
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux-x86_64
+            maven_opts: ''
+          - os: macos-latest
+            platform: macos-aarch64
+            maven_opts: '-Dmaven.repo.local=/tmp'
+
+    steps:
+    - uses: actions/checkout@v6
+      with:
+        ref: v${{ inputs.version }}
+
+    - name: Install JDK 25
+      uses: actions/setup-java@v5
+      with:
+        distribution: 'temurin'
+        java-version: 25
+        check-latest: true
+        cache: 'maven'
+
+    - name: Install GraalVM
+      uses: graalvm/setup-graalvm@v1
+      with:
+        java-version: '21'
+        distribution: 'graalvm'
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Cache Maven packages
+      uses: actions/cache@v4
+      if: matrix.os == 'ubuntu-latest'
+      with:
+        path: ~/.m2
+        key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+        restore-keys: ${{ runner.os }}-m2
+
+    - name: Build native executable
+      run: mvn clean package -Dnative ${{ matrix.maven_opts }}
+
+    - name: Upload native executable
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ needs.create-release.outputs.upload_url }}
+        asset_path: ./target/test-failure-detector-${{ inputs.version }}-runner
+        asset_name: test-failure-detector-${{ matrix.platform }}
+        asset_content_type: application/octet-stream

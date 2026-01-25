@@ -196,6 +196,7 @@ The workflow will automatically:
 - Commit and push the change
 - Create a git tag
 - Create a GitHub release
-- Trigger native executable builds for Linux x86_64, and macOS aarch64
+- Build native executables for Linux x86_64 and macOS aarch64
+- Upload all native executables as release assets
 
-The native executables will be uploaded as release assets within a few minutes.
+The entire process takes about 10-15 minutes (native builds run in parallel).
