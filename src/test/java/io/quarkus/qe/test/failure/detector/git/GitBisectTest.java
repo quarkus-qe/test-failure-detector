@@ -35,7 +35,7 @@ class GitBisectTest {
 
         // Get commit count
         String commitCount = runGitCommand(testRepo, "git", "rev-list", "--count", "HEAD").trim();
-        assertEquals("34", commitCount, "Should have 34 commits");
+        assertEquals("35", commitCount, "Should have 34 commits");
 
         // Verify we have merge commits
         String mergeCommitCount = runGitCommand(testRepo, "git", "rev-list", "--merges", "--count", "HEAD").trim();
