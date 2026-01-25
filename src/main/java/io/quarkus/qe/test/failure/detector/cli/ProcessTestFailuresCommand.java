@@ -3,6 +3,7 @@ package io.quarkus.qe.test.failure.detector.cli;
 import io.quarkus.qe.test.failure.detector.analyze.FailuresAnalyzer;
 import io.quarkus.qe.test.failure.detector.configuration.AppConfig;
 import io.quarkus.qe.test.failure.detector.find.FailuresFinder;
+import io.quarkus.qe.test.failure.detector.lifecycle.OnCommandExit;
 import io.quarkus.qe.test.failure.detector.output.Data;
 import io.quarkus.qe.test.failure.detector.output.OutputChannel;
 import io.quarkus.qe.test.failure.detector.project.ProjectSource;
@@ -21,7 +22,7 @@ import java.time.format.DateTimeParseException;
 
 import static io.quarkus.qe.test.failure.detector.cli.CommandUtils.parseDate;
 
-@CommandLine.Command
+@CommandLine.Command(mixinStandardHelpOptions = true)
 public class ProcessTestFailuresCommand implements Runnable {
 
     @CommandLine.Spec
@@ -102,6 +103,9 @@ public class ProcessTestFailuresCommand implements Runnable {
     @Inject
     Event<AppConfig> appConfigEvent;
 
+    @Inject
+    Event<OnCommandExit> shutdownEvent;
+
     @Override
     public void run() {
         consoleLogger.setWriters(spec.commandLine().getOut(), spec.commandLine().getErr(), debug);
@@ -118,6 +122,9 @@ public class ProcessTestFailuresCommand implements Runnable {
                 .build();
 
         outputChannel.process(data);
+
+        // this is done as @Shutdown is happening after the command exited and ConsoleLog is empty
+        shutdownEvent.fire(new OnCommandExit());
     }
 
 }

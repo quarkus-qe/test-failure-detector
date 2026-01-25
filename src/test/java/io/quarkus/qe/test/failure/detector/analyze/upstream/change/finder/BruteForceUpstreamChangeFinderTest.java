@@ -8,6 +8,7 @@ import io.quarkus.qe.test.failure.detector.analyze.FailureHistory.TrackedFailure
 import io.quarkus.qe.test.failure.detector.analyze.RootCause;
 import io.quarkus.qe.test.failure.detector.configuration.AppConfig;
 import io.quarkus.qe.test.failure.detector.find.Failure;
+import io.quarkus.qe.test.failure.detector.lifecycle.OnCommandExit;
 import io.quarkus.qe.test.failure.detector.logger.Logger;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.junit.TestProfile;
@@ -74,7 +75,7 @@ class BruteForceUpstreamChangeFinderTest {
         logger.info("Found failing commit: " + change.gitCommitSHA());
 
         // Finalize and save
-        finder.finalizeAndSaveHistory();
+        finder.finalizeAndSaveHistory(new OnCommandExit());
 
         // Verify history was saved
         HistoryData savedHistory = mockHistory.load();
@@ -130,7 +131,7 @@ class BruteForceUpstreamChangeFinderTest {
         assertEquals(knownCommit, change.gitCommitSHA(), "Should use cached commit");
         assertEquals("12345", change.prNumber(), "Should use cached PR");
 
-        finder.finalizeAndSaveHistory();
+        finder.finalizeAndSaveHistory(new OnCommandExit());
 
         // Verify failure was marked as EXISTING
         HistoryData saved = mockHistory.load();
@@ -181,7 +182,7 @@ class BruteForceUpstreamChangeFinderTest {
         );
 
         finder.findUpstreamChange(newFailure);
-        finder.finalizeAndSaveHistory();
+        finder.finalizeAndSaveHistory(new OnCommandExit());
 
         // Verify old failure was marked as RESOLVED
         HistoryData saved = mockHistory.load();
@@ -220,7 +221,7 @@ class BruteForceUpstreamChangeFinderTest {
         assertNotNull(change.gitCommitSHA(), "Should have commit SHA");
         logger.info("Binary search found failing commit: " + change.gitCommitSHA());
 
-        finder.finalizeAndSaveHistory();
+        finder.finalizeAndSaveHistory(new OnCommandExit());
     }
 
     /**
@@ -252,7 +253,7 @@ class BruteForceUpstreamChangeFinderTest {
         assertNotNull(change.gitCommitSHA(), "Should have commit SHA");
         logger.info("Linear search found failing commit: " + change.gitCommitSHA());
 
-        finder.finalizeAndSaveHistory();
+        finder.finalizeAndSaveHistory(new OnCommandExit());
     }
 
     /**
@@ -281,7 +282,7 @@ class BruteForceUpstreamChangeFinderTest {
         binaryFinder.setBisectStrategy(AppConfig.BisectStrategy.BINARY);
 
         RootCause.UpstreamChange binaryChange = binaryFinder.findUpstreamChange(mockFailure1);
-        binaryFinder.finalizeAndSaveHistory();
+        binaryFinder.finalizeAndSaveHistory(new OnCommandExit());
 
         // Test with linear search
         HistoryData emptyHistory2 = HistoryData.empty();
@@ -301,7 +302,7 @@ class BruteForceUpstreamChangeFinderTest {
         linearFinder.setBisectStrategy(AppConfig.BisectStrategy.LINEAR);
 
         RootCause.UpstreamChange linearChange = linearFinder.findUpstreamChange(mockFailure2);
-        linearFinder.finalizeAndSaveHistory();
+        linearFinder.finalizeAndSaveHistory(new OnCommandExit());
 
         // Both should find the same commit
         assertNotNull(binaryChange, "Binary search should find commit");
@@ -338,7 +339,7 @@ class BruteForceUpstreamChangeFinderTest {
         binaryFinder.setBisectStrategy(AppConfig.BisectStrategy.BINARY);
 
         binaryFinder.findUpstreamChange(mockFailure1);
-        binaryFinder.finalizeAndSaveHistory();
+        binaryFinder.finalizeAndSaveHistory(new OnCommandExit());
 
         int binaryTestedCount = mockHistory1.load().testedCommits().size();
 
@@ -360,7 +361,7 @@ class BruteForceUpstreamChangeFinderTest {
         linearFinder.setBisectStrategy(AppConfig.BisectStrategy.LINEAR);
 
         linearFinder.findUpstreamChange(mockFailure2);
-        linearFinder.finalizeAndSaveHistory();
+        linearFinder.finalizeAndSaveHistory(new OnCommandExit());
 
         int linearTestedCount = mockHistory2.load().testedCommits().size();
 

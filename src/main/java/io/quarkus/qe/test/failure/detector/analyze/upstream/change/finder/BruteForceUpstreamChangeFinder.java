@@ -7,6 +7,7 @@ import io.quarkus.qe.test.failure.detector.analyze.RootCause;
 import io.quarkus.qe.test.failure.detector.analyze.UpstreamChangeFinder;
 import io.quarkus.qe.test.failure.detector.configuration.AppConfig;
 import io.quarkus.qe.test.failure.detector.find.Failure;
+import io.quarkus.qe.test.failure.detector.lifecycle.OnCommandExit;
 import io.quarkus.qe.test.failure.detector.logger.Logger;
 import io.quarkus.runtime.Shutdown;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -157,8 +158,7 @@ class BruteForceUpstreamChangeFinder implements UpstreamChangeFinder {
      * This should be called after all failures have been analyzed.
      * It marks previous failures that are no longer failing as RESOLVED.
      */
-    @Shutdown
-    void finalizeAndSaveHistory() {
+    void finalizeAndSaveHistory(@Observes OnCommandExit ignored) {
         if (!initialized) {
             logger.info("Not initialized, skipping history save");
             return;
