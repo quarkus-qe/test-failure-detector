@@ -374,28 +374,22 @@ class BruteForceUpstreamChangeFinderTest {
     }
 
     private Path copyTestRepo(Path tempDir) throws Exception {
-        Path testRepo = tempDir.resolve("test-repo");
-        Path sourceRepo = Paths.get("src/test/resources/git-bisect-test").toAbsolutePath();
+        // Create the temp directory if it doesn't exist
+        Files.createDirectories(tempDir);
 
-        // Copy the entire git repository
-        copyDirectory(sourceRepo, testRepo);
+        // Extract the test repository from tarball
+        Path tarball = Paths.get("src/test/resources/git-bisect-test.tar.gz").toAbsolutePath();
 
-        return testRepo;
-    }
+        ProcessBuilder pb = new ProcessBuilder("tar", "-xzf", tarball.toString(), "-C", tempDir.toString());
+        Process process = pb.start();
+        int exitCode = process.waitFor();
 
-    private void copyDirectory(Path source, Path target) throws Exception {
-        Files.walk(source).forEach(sourcePath -> {
-            try {
-                Path targetPath = target.resolve(source.relativize(sourcePath));
-                if (Files.isDirectory(sourcePath)) {
-                    Files.createDirectories(targetPath);
-                } else {
-                    Files.copy(sourcePath, targetPath);
-                }
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-        });
+        if (exitCode != 0) {
+            String error = new String(process.getErrorStream().readAllBytes());
+            throw new RuntimeException("Failed to extract test repository: " + error);
+        }
+
+        return tempDir.resolve("git-bisect-test");
     }
 
     private String getFirstCommit(Path repoPath) throws Exception {
