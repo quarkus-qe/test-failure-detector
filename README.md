@@ -200,3 +200,50 @@ The workflow will automatically:
 - Upload all native executables as release assets
 
 The entire process takes about 10-15 minutes (native builds run in parallel).
+
+## Daily Failure Analysis
+
+This repository includes an automated daily analysis workflow that monitors the [Quarkus Test Suite daily builds](https://github.com/quarkus-qe/quarkus-test-suite/actions/workflows/daily.yaml) for test failures.
+
+### How It Works
+
+The workflow runs automatically every day at 12:00 PM UTC (after the Quarkus Test Suite daily builds finish at ~11:30 AM UTC) and:
+1. Analyzes the latest Quarkus Test Suite daily build
+2. Identifies test failures and their root causes
+3. Uses git bisect to find the upstream Quarkus commit that introduced each failure
+4. Maintains history across runs to track when failures are introduced and resolved
+5. Stores both the detailed report and history as artifacts
+
+**Important limitations**:
+
+- **JDK-specific failures**: The Quarkus Test Suite daily builds test against multiple JDK versions (currently JDK 17 and 21). However, this failure analysis workflow bisects and tests using only JDK 21. Therefore, **failures that only occur on JDK 17 may not be detected**. If a test fails only on JDK 17 but passes on JDK 21, the bisect process will not reproduce the failure.
+
+- **Platform-specific failures**: The analysis runs on Linux x86_64 only. **Windows-specific failures and aarch64-specific failures will not be detected**. The Quarkus Test Suite daily builds include Windows and potentially other architectures, but the bisect process currently only reproduces the Linux x86_64 environment.
+
+These limitations may be addressed in future versions of the tool.
+
+### Viewing Results
+
+Results are available as workflow artifacts:
+- **failure-analysis-report-[run-number]**: The complete failure analysis report
+- **failure-analysis-history**: The persistent history file used for tracking failures over time
+
+To view the latest results:
+1. Go to [Actions > Daily Failure Analysis](https://github.com/quarkus-qe/test-failure-detector/actions/workflows/daily-failure-analysis.yaml)
+2. Click on the most recent run
+3. Download the artifacts to view the report and history
+
+### Manual Triggers
+
+You can manually trigger the analysis with custom parameters:
+
+1. Go to [Actions > Daily Failure Analysis](https://github.com/quarkus-qe/test-failure-detector/actions/workflows/daily-failure-analysis.yaml)
+2. Click "Run workflow"
+3. Configure optional parameters:
+   - **from**: Reference date to look back from (format: `dd.MM.yyyy` or `yyyy-MM-dd`, default: today)
+   - **lookback_days**: Number of days to look back for upstream changes (default: `1`)
+4. Click "Run workflow"
+
+**Default behavior**: Analyzes the last 24 hours of changes (today looking back 1 day).
+
+**Custom example**: Set `from=25.01.2026` and `lookback_days=3` to analyze 3 days of changes starting from January 25th, 2026.
