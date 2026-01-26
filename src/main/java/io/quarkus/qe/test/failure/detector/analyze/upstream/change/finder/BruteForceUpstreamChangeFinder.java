@@ -618,23 +618,45 @@ class BruteForceUpstreamChangeFinder implements UpstreamChangeFinder {
             // The modulePath is the absolute path to the module, we need relative path
             String moduleRelativePath = extractModuleRelativePath(failure);
 
-            logger.info("Running test " + simpleClassName + " in module " + moduleRelativePath);
+            // Detect if this is a native mode test by checking if "native" appears in the module path
+            // Artifact names follow pattern: artifacts-native21-... or artifacts-jvm21-...
+            boolean isNativeTest = failure.modulePath().toLowerCase().contains("native");
+            String testMode = isNativeTest ? "NATIVE" : "JVM";
+
+            logger.info("Running test " + simpleClassName + " in module " + moduleRelativePath + " [" + testMode + " mode]");
 
             // Get the Quarkus version that was built
             String quarkusVersion = getQuarkusVersion();
             logger.info("Using Quarkus version: " + quarkusVersion);
 
-            // Run the test with the built Quarkus version
-            String mvnCommand = "mvn clean verify -Dit.test=" + simpleClassName +
-                    " -Dquarkus.platform.version=" + quarkusVersion +
-                    " -f " + moduleRelativePath;
+            // Build Maven command arguments (matching quarkus-test-suite daily build)
+            List<String> mvnArgs = new ArrayList<>();
+            mvnArgs.add("mvn");
+            mvnArgs.add("-fae"); // fail at end
+            mvnArgs.add("-V"); // show version
+            mvnArgs.add("-B"); // batch mode (non-interactive)
+            mvnArgs.add("--no-transfer-progress"); // don't show download progress
+            mvnArgs.add("clean");
+            mvnArgs.add("verify");
+            mvnArgs.add("-Dit.test=" + simpleClassName);
+            mvnArgs.add("-Dquarkus.platform.version=" + quarkusVersion);
 
-            logger.info("Executing: " + mvnCommand);
+            // Always add Quarkus CLI test args (needed for CLI-related tests)
+            mvnArgs.add("-Dinclude.quarkus-cli-tests");
+            mvnArgs.add("-Dts.quarkus.cli.cmd=" + testSuiteRepo.getParent().resolve("quarkus-dev-cli").toAbsolutePath());
 
-            String output = runCommand(testSuiteRepo, "mvn", "clean", "verify",
-                    "-Dit.test=" + simpleClassName,
-                    "-Dquarkus.platform.version=" + quarkusVersion,
-                    "-f", moduleRelativePath);
+            // Add native-specific args if this is a native test
+            if (isNativeTest) {
+                mvnArgs.add("-Dnative");
+                mvnArgs.add("-Dquarkus.native.builder-image=quay.io/quarkus/ubi9-quarkus-mandrel-builder-image:jdk-21");
+            }
+
+            mvnArgs.add("-f");
+            mvnArgs.add(moduleRelativePath);
+
+            logger.info("Executing: " + String.join(" ", mvnArgs));
+
+            String output = runCommand(testSuiteRepo, mvnArgs.toArray(new String[0]));
 
             // Check if test passed
             boolean testPassed = output.contains("BUILD SUCCESS") && !output.contains("Failures: 0, Errors: 0");

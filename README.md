@@ -216,9 +216,15 @@ The workflow runs automatically every day at 12:00 PM UTC (after the Quarkus Tes
 
 **Important limitations**:
 
-- **JDK-specific failures**: The Quarkus Test Suite daily builds test against multiple JDK versions (currently JDK 17 and 21). However, this failure analysis workflow bisects and tests using only JDK 21. Therefore, **failures that only occur on JDK 17 may not be detected**. If a test fails only on JDK 17 but passes on JDK 21, the bisect process will not reproduce the failure.
+- **JDK-specific failures**: The Quarkus Test Suite daily builds test against multiple JDK versions (currently JDK 17 and 21). However, this failure analysis workflow bisects and tests using only JDK 21. Therefore, **failures that only occur on JDK 17 may not be detected**. If a test fails only on JDK 17 but passes on JDK 21, the bisect process will not reproduce the failure. Note that many failures are not JDK-specific and will be detected regardless.
 
 - **Platform-specific failures**: The analysis runs on Linux x86_64 only. **Windows-specific failures and aarch64-specific failures will not be detected**. The Quarkus Test Suite daily builds include Windows and potentially other architectures, but the bisect process currently only reproduces the Linux x86_64 environment.
+
+- **Native builder image**: For native mode tests, the tool always uses `ubi9-quarkus-mandrel-builder-image:jdk-21` regardless of which builder image was used in the original test suite run. Failures specific to other builder images (e.g., `ubi-quarkus-mandrel-builder-image:jdk-21` with UBI8 compatibility) may not be reproduced.
+
+- **Quarkus CLI tests**: The tool always uses Quarkus CLI version 999-SNAPSHOT when running tests. This means it can only detect failures when testing with the latest Quarkus snapshot. CLI-specific failures related to released versions cannot be bisected.
+
+- **Matrix specifics ignored**: The Quarkus Test Suite runs with various matrix configurations (different profiles, JDK versions, builder images). The bisect process uses a single configuration: JDK 21 on Linux x86_64, with either JVM or Native mode detection based on the artifact name.
 
 These limitations may be addressed in future versions of the tool.
 
