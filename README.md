@@ -214,6 +214,8 @@ The workflow runs automatically every day at 12:00 PM UTC (after the Quarkus Tes
 4. Maintains history across runs to track when failures are introduced and resolved
 5. Stores both the detailed report and history as artifacts
 
+**IMPORTANT**: The daily workflow downloads and uses the **latest released binary** from [GitHub Releases](https://github.com/quarkus-qe/test-failure-detector/releases), not the latest code from the `main` branch. If you make changes to the tool and want the daily workflow to use them, you **must create a new release** first. See [Creating a Release](#creating-a-release) for instructions.
+
 **Important limitations**:
 
 - **JDK-specific failures**: The Quarkus Test Suite daily builds test against multiple JDK versions (currently JDK 17 and 21). However, this failure analysis workflow bisects and tests using only JDK 21. Therefore, **failures that only occur on JDK 17 may not be detected**. If a test fails only on JDK 17 but passes on JDK 21, the bisect process will not reproduce the failure. Note that many failures are not JDK-specific and will be detected regardless.
