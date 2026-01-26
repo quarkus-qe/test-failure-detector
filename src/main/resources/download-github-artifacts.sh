@@ -125,7 +125,7 @@ for artifact_dir in "$TEMP_DOWNLOAD_DIR"/*; do
         echo "Processing artifact: $artifact_name"
 
         # GitHub API returns a zip containing another zip/tar, extract both levels
-        for archive in "$artifact_dir"/*.zip "$artifact_dir"/*.tar.gz "$artifact_dir"/*.tgz; do
+        for archive in "$artifact_dir"/*.zip "$artifact_dir"/*.tar.gz "$artifact_dir"/*.tgz "$artifact_dir"/*.tar; do
             [ -f "$archive" ] || continue
             echo "  Extracting outer archive: $(basename "$archive")"
             case "$archive" in
@@ -137,11 +137,15 @@ for artifact_dir in "$TEMP_DOWNLOAD_DIR"/*; do
                     tar -xzf "$archive" -C "$artifact_dir"
                     rm "$archive"
                     ;;
+                *.tar)
+                    tar -xf "$archive" -C "$artifact_dir"
+                    rm "$archive"
+                    ;;
             esac
         done
 
         # Extract any nested archives that were inside
-        for archive in "$artifact_dir"/*.zip "$artifact_dir"/*.tar.gz "$artifact_dir"/*.tgz; do
+        for archive in "$artifact_dir"/*.zip "$artifact_dir"/*.tar.gz "$artifact_dir"/*.tgz "$artifact_dir"/*.tar; do
             [ -f "$archive" ] || continue
             echo "  Extracting inner archive: $(basename "$archive")"
             case "$archive" in
@@ -151,6 +155,10 @@ for artifact_dir in "$TEMP_DOWNLOAD_DIR"/*; do
                     ;;
                 *.tar.gz|*.tgz)
                     tar -xzf "$archive" -C "$artifact_dir"
+                    rm "$archive"
+                    ;;
+                *.tar)
+                    tar -xf "$archive" -C "$artifact_dir"
                     rm "$archive"
                     ;;
             esac

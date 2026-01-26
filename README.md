@@ -226,6 +226,8 @@ The workflow runs automatically every day at 12:00 PM UTC (after the Quarkus Tes
 
 - **Matrix specifics ignored**: The Quarkus Test Suite runs with various matrix configurations (different profiles, JDK versions, builder images). The bisect process uses a single configuration: JDK 21 on Linux x86_64, with either JVM or Native mode detection based on the artifact name.
 
+- **Test failures only**: This tool only detects **test failures** from Maven Failsafe reports. If the upstream workflow fails due to **build failures** (compilation errors, Maven plugin errors, dependency resolution issues, etc.), the tool will report "No test failures detected" because no test reports are generated when the build fails before the test phase.
+
 These limitations may be addressed in future versions of the tool.
 
 ### Viewing Results
