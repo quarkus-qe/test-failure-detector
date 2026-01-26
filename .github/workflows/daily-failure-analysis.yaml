@@ -15,7 +15,7 @@ on:
         description: 'Number of days to look back for upstream changes'
         required: false
         type: string
-        default: '1'
+        default: '2'
 
 permissions:
   contents: read
@@ -195,8 +195,8 @@ jobs:
           echo "No previous history file found, starting fresh"
         fi
 
-        # Add lookback days (default: 1)
-        LOOKBACK="${{ inputs.lookback_days || '1' }}"
+        # Add lookback days (default: 2)
+        LOOKBACK="${{ inputs.lookback_days || '2' }}"
         ARGS="$ARGS --lookback-days=$LOOKBACK"
 
         # Add from date if provided

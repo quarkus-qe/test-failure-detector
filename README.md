@@ -247,9 +247,9 @@ You can manually trigger the analysis with custom parameters:
 2. Click "Run workflow"
 3. Configure optional parameters:
    - **from**: Reference date to look back from (format: `dd.MM.yyyy` or `yyyy-MM-dd`, default: today)
-   - **lookback_days**: Number of days to look back for upstream changes (default: `1`)
+   - **lookback_days**: Number of days to look back for upstream changes (default: `2`)
 4. Click "Run workflow"
 
-**Default behavior**: Analyzes the last 24 hours of changes (today looking back 1 day).
+**Default behavior**: Analyzes the last 48 hours of changes (today looking back 2 days).
 
 **Custom example**: Set `from=25.01.2026` and `lookback_days=3` to analyze 3 days of changes starting from January 25th, 2026.
