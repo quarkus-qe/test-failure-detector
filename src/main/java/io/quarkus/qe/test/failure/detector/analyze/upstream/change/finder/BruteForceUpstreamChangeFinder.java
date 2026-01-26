@@ -82,6 +82,7 @@ class BruteForceUpstreamChangeFinder implements UpstreamChangeFinder {
         this.lookbackDays = appConfig.lookbackDays();
         this.from = appConfig.from();
         this.bisectStrategy = appConfig.bisectStrategy();
+        this.testSuiteRepoUrl = appConfig.testSuiteRepoUrl();
     }
 
     @Override

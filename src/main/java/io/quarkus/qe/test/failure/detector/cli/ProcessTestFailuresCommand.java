@@ -85,6 +85,14 @@ public class ProcessTestFailuresCommand implements Runnable {
             """, defaultValue = "BINARY")
     AppConfig.BisectStrategy bisectStrategy = AppConfig.BisectStrategy.BINARY;
 
+    @CommandLine.Option(order = 14, names = { "--test-suite-repo" }, description = """
+            Git repository URL of the test suite to run against Quarkus commits.
+            This is the repository that will be cloned and used to run tests during bisect.
+            Default: https://github.com/quarkus-qe/quarkus-test-suite.git
+            Example: https://github.com/quarkus-qe/quarkus-test-framework.git
+            """, defaultValue = "https://github.com/quarkus-qe/quarkus-test-suite.git")
+    String testSuiteRepoUrl = "https://github.com/quarkus-qe/quarkus-test-suite.git";
+
     @Inject
     FailuresAnalyzer failuresAnalyzer;
 
@@ -110,7 +118,7 @@ public class ProcessTestFailuresCommand implements Runnable {
     public void run() {
         consoleLogger.setWriters(spec.commandLine().getOut(), spec.commandLine().getErr(), debug);
 
-        appConfigEvent.fire(new AppConfig(lookbackDays, parseDate(from), historyFilePath, outputFilePath, bisectStrategy));
+        appConfigEvent.fire(new AppConfig(lookbackDays, parseDate(from), historyFilePath, outputFilePath, bisectStrategy, testSuiteRepoUrl));
 
         Path projectWithPossibleTestFailures = projectSource.getTestedProjectDirectory(projectSourceArgument);
 

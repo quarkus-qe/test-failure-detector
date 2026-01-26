@@ -124,6 +124,11 @@ test-failure-detector [PROJECT_SOURCE_TYPE] [PROJECT_SOURCE] [OPTIONS]
   - Accepts formats: `dd.MM.yyyy` (e.g., `10.1.2026`), `yyyy-MM-dd` (e.g., `2026-01-10`), or ISO-8601 instant
   - Combined with `--lookback-days`, defines the commit search window
 
+- `--test-suite-repo=<url>` - Git repository URL of the test suite to run against Quarkus commits (default: `https://github.com/quarkus-qe/quarkus-test-suite.git`)
+  - The repository that will be cloned and used to run tests during bisect
+  - Use this to analyze failures in other test suites like `https://github.com/quarkus-qe/quarkus-test-framework.git`
+  - Note: Only the test suite repository is configurable; bisect always tests against upstream Quarkus commits
+
 ### Usage Examples
 
 #### Analyze local test failures and save report to file
@@ -166,6 +171,15 @@ test-failure-detector GITHUB_ACTION_ARTIFACTS \
   https://github.com/quarkus-qe/quarkus-test-suite/actions/workflows/daily.yaml \
   --history-file=daily-history.json \
   --output-file=reports/daily-$(date +%Y-%m-%d).txt \
+  --lookback-days=7
+```
+
+#### Analyze failures in quarkus-test-framework
+
+```bash
+# Analyze local quarkus-test-framework examples failures
+test-failure-detector LOCAL_DIRECTORY path/to/quarkus-test-framework/examples/target/failsafe-reports \
+  --test-suite-repo=https://github.com/quarkus-qe/quarkus-test-framework.git \
   --lookback-days=7
 ```
 
