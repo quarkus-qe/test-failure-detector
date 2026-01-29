@@ -292,7 +292,7 @@ class BruteForceUpstreamChangeFinder implements UpstreamChangeFinder {
                 Instant shallowSince = calculateShallowSince();
                 logger.info("Fetching commits since: " + shallowSince + " (" + lookbackDays + " days back)");
                 runCommand(repoPath, "git", "fetch", "origin", "main",
-                        "--shallow-since=" + shallowSince.toString());
+                        "--shallow-since=" + formatGitDate(shallowSince));
             } else {
                 // For test suite, just fetch main
                 runCommand(repoPath, "git", "fetch", "origin", "main");
@@ -313,7 +313,7 @@ class BruteForceUpstreamChangeFinder implements UpstreamChangeFinder {
                 Instant shallowSince = calculateShallowSince();
                 logger.info("Shallow cloning since: " + shallowSince + " (" + lookbackDays + " days back)");
                 runCommand(repoPath.getParent(), "git", "clone",
-                        "--shallow-since=" + shallowSince.toString(),
+                        "--shallow-since=" + formatGitDate(shallowSince),
                         "--single-branch", "--branch=main",
                         repoUrl, repoPath.getFileName().toString());
             } else {
@@ -345,6 +345,14 @@ class BruteForceUpstreamChangeFinder implements UpstreamChangeFinder {
         }
 
         return configuredLookback;
+    }
+
+    /**
+     * Format an Instant as a git-compatible date string.
+     * Git accepts Unix epoch seconds which is simpler than ISO-8601 with nanoseconds.
+     */
+    private String formatGitDate(Instant instant) {
+        return String.valueOf(instant.getEpochSecond());
     }
 
     /**
