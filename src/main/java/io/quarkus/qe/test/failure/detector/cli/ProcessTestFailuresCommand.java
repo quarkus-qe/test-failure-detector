@@ -118,7 +118,7 @@ public class ProcessTestFailuresCommand implements Runnable {
     public void run() {
         consoleLogger.setWriters(spec.commandLine().getOut(), spec.commandLine().getErr(), debug);
 
-        appConfigEvent.fire(new AppConfig(lookbackDays, parseDate(from), historyFilePath, outputFilePath, bisectStrategy, testSuiteRepoUrl));
+        appConfigEvent.fire(new AppConfig(lookbackDays, parseDate(from), historyFilePath, outputFilePath, bisectStrategy, testSuiteRepoUrl, projectSource, projectSourceArgument));
 
         Path projectWithPossibleTestFailures = projectSource.getTestedProjectDirectory(projectSourceArgument);
 

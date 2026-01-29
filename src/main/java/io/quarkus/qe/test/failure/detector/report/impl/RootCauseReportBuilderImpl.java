@@ -2,6 +2,7 @@ package io.quarkus.qe.test.failure.detector.report.impl;
 
 import io.quarkus.qe.test.failure.detector.analyze.FailureDetails;
 import io.quarkus.qe.test.failure.detector.analyze.RootCause;
+import io.quarkus.qe.test.failure.detector.project.ProjectSource;
 import io.quarkus.qe.test.failure.detector.report.RootCauseReport;
 import io.quarkus.qe.test.failure.detector.report.RootCauseReportBuilder;
 
@@ -12,9 +13,13 @@ import java.util.List;
 final class RootCauseReportBuilderImpl implements RootCauseReportBuilder {
 
     private final List<RootCause> rootCauses;
+    private final ProjectSource projectSource;
+    private final String projectSourceArgument;
 
-    RootCauseReportBuilderImpl() {
+    RootCauseReportBuilderImpl(ProjectSource projectSource, String projectSourceArgument) {
         this.rootCauses = new ArrayList<>();
+        this.projectSource = projectSource;
+        this.projectSourceArgument = projectSourceArgument;
     }
 
     @Override
@@ -30,7 +35,7 @@ final class RootCauseReportBuilderImpl implements RootCauseReportBuilder {
 
     @Override
     public RootCauseReport build() {
-        return new RootCauseReportImpl(rootCauses);
+        return new RootCauseReportImpl(rootCauses, projectSource, projectSourceArgument);
     }
 
     /**
@@ -38,20 +43,31 @@ final class RootCauseReportBuilderImpl implements RootCauseReportBuilder {
      */
     private record RootCauseReportImpl(Reader reader) implements RootCauseReport {
 
-        private RootCauseReportImpl(List<RootCause> rootCauses) {
-            this(createReader(List.copyOf(rootCauses)));
+        private RootCauseReportImpl(List<RootCause> rootCauses, ProjectSource projectSource, String projectSourceArgument) {
+            this(createReader(List.copyOf(rootCauses), projectSource, projectSourceArgument));
         }
 
-        private static Reader createReader(List<RootCause> rootCauses) {
+        private static Reader createReader(List<RootCause> rootCauses, ProjectSource projectSource, String projectSourceArgument) {
             var resultBuilder = new StringBuilder();
-            createData(resultBuilder, rootCauses);
+            createData(resultBuilder, rootCauses, projectSource, projectSourceArgument);
             return Reader.of(resultBuilder.toString());
         }
-        
-        private static void createData(StringBuilder resultBuilder, List<RootCause> rootCauses) {
+
+        private static void createData(StringBuilder resultBuilder, List<RootCause> rootCauses, ProjectSource projectSource, String projectSourceArgument) {
             if (rootCauses.isEmpty()) {
                 resultBuilder.append(System.lineSeparator())
                         .append("✓ No test failures detected.");
+
+                // Add context about what was analyzed
+                if (projectSource == ProjectSource.GITHUB_ACTION_ARTIFACTS && projectSourceArgument != null) {
+                    resultBuilder.append(System.lineSeparator())
+                            .append(System.lineSeparator())
+                            .append("Analyzed: ").append(projectSourceArgument);
+                } else if (projectSourceArgument != null) {
+                    resultBuilder.append(System.lineSeparator())
+                            .append(System.lineSeparator())
+                            .append("Analyzed: ").append(projectSourceArgument);
+                }
                 return;
             }
 
