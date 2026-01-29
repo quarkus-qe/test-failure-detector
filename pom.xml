@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>io.quarkus.qe</groupId>
     <artifactId>test-failure-detector</artifactId>
-    <version>0.0.1.ER11</version>
+    <version>0.0.1.ER12</version>
     <name>Quarkus QE - Test Failure Detector</name>
     <description>Tool used to analyze daily build failures and determine the root cause</description>
 
