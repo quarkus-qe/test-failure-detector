@@ -2,9 +2,9 @@ name: Daily Failure Analysis
 
 on:
   schedule:
-    # Run at 12:00 PM UTC, after quarkus-test-suite daily builds finish
-    # (daily builds start at 5:30 AM UTC and take ~4-6 hours)
-    - cron: '0 12 * * *'
+    # Run at 3:00 PM UTC, after quarkus-test-suite daily builds finish
+    # (daily builds start at ~6:00 AM UTC and take 8-9 hours)
+    - cron: '0 15 * * *'
   workflow_dispatch:
     inputs:
       run_url:

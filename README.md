@@ -221,7 +221,7 @@ This repository includes an automated daily analysis workflow that monitors the 
 
 ### How It Works
 
-The workflow runs automatically every day at 12:00 PM UTC (after the Quarkus Test Suite daily builds finish at ~11:30 AM UTC) and:
+The workflow runs automatically every day at 3:00 PM UTC (after the Quarkus Test Suite daily builds finish at ~2:00 PM UTC) and:
 1. Analyzes the latest Quarkus Test Suite daily build
 2. Identifies test failures and their root causes
 3. Uses git bisect to find the upstream Quarkus commit that introduced each failure
