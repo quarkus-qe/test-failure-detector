@@ -106,8 +106,8 @@ echo "$ARTIFACTS_JSON" | jq -c '.[]' | while read -r artifact; do
     ARTIFACT_DIR="$TEMP_DOWNLOAD_DIR/$ARTIFACT_NAME"
     mkdir -p "$ARTIFACT_DIR"
 
-    # Download using gh api
-    if ! gh api "repos/$REPO/actions/artifacts/$ARTIFACT_ID/zip" > "$ARTIFACT_DIR/$ARTIFACT_NAME.zip"; then
+    # Download using gh api (use .download suffix to avoid name collision with nested zip)
+    if ! gh api "repos/$REPO/actions/artifacts/$ARTIFACT_ID/zip" > "$ARTIFACT_DIR/artifact.download"; then
         echo "Warning: Failed to download artifact $ARTIFACT_NAME" >&2
         continue
     fi
@@ -125,10 +125,14 @@ for artifact_dir in "$TEMP_DOWNLOAD_DIR"/*; do
         echo "Processing artifact: $artifact_name"
 
         # GitHub API returns a zip containing another zip/tar, extract both levels
-        for archive in "$artifact_dir"/*.zip "$artifact_dir"/*.tar.gz "$artifact_dir"/*.tgz "$artifact_dir"/*.tar; do
+        for archive in "$artifact_dir"/artifact.download "$artifact_dir"/*.zip "$artifact_dir"/*.tar.gz "$artifact_dir"/*.tgz "$artifact_dir"/*.tar; do
             [ -f "$archive" ] || continue
             echo "  Extracting outer archive: $(basename "$archive")"
             case "$archive" in
+                *.download)
+                    unzip -q -o "$archive" -d "$artifact_dir"
+                    rm "$archive"
+                    ;;
                 *.zip)
                     unzip -q -o "$archive" -d "$artifact_dir"
                     rm "$archive"
