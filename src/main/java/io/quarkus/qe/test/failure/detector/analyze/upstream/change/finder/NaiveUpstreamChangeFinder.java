@@ -44,7 +44,7 @@ import java.util.regex.Pattern;
  * to track the current failure context set by the caller.
  */
 @ApplicationScoped
-class BruteForceUpstreamChangeFinder implements UpstreamChangeFinder {
+class NaiveUpstreamChangeFinder implements UpstreamChangeFinder {
 
     private static final String QUARKUS_REPO_URL = "https://github.com/quarkusio/quarkus.git";
     private static final String TEST_SUITE_REPO_URL = "https://github.com/quarkus-qe/quarkus-test-suite.git";
@@ -71,7 +71,7 @@ class BruteForceUpstreamChangeFinder implements UpstreamChangeFinder {
     protected Path quarkusRepoPath;
     protected Path testSuiteRepoPath;
 
-    BruteForceUpstreamChangeFinder(Logger logger,
+    NaiveUpstreamChangeFinder(Logger logger,
                                    FailureHistory failureHistory) {
         this.logger = logger;
         this.failureHistory = failureHistory;
@@ -232,7 +232,7 @@ class BruteForceUpstreamChangeFinder implements UpstreamChangeFinder {
     private void initialize() {
         initialized = true;
 
-        logger.info("Initializing BruteForceUpstreamChangeFinder");
+        logger.info("Initializing NaiveUpstreamChangeFinder");
 
         // Load previous history
         previousHistory = failureHistory.load();

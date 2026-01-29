@@ -26,7 +26,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Test BruteForceUpstreamChangeFinder using a fake git repository.
+ * Test NaiveUpstreamChangeFinder using a fake git repository.
  * Uses the git-bisect-test repository which has a known history where:
  * - Older commits print "A"
  * - Middle commits print "B"
@@ -34,7 +34,7 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 @QuarkusTest
 @TestProfile(TestBeanProfile.class)
-class BruteForceUpstreamChangeFinderTest {
+class NaiveUpstreamChangeFinderTest {
 
     @Inject
     Logger logger;
@@ -60,7 +60,7 @@ class BruteForceUpstreamChangeFinderTest {
         );
 
         // Create the finder with mock dependencies
-        MockBruteForceUpstreamChangeFinder finder = new MockBruteForceUpstreamChangeFinder(
+        MockNaiveUpstreamChangeFinder finder = new MockNaiveUpstreamChangeFinder(
                 logger,
                 mockHistory,
                 testRepo
@@ -118,7 +118,7 @@ class BruteForceUpstreamChangeFinderTest {
                 tempDir.resolve("module").toString()
         );
 
-        MockBruteForceUpstreamChangeFinder finder = new MockBruteForceUpstreamChangeFinder(
+        MockNaiveUpstreamChangeFinder finder = new MockNaiveUpstreamChangeFinder(
                 logger,
                 mockHistory,
                 testRepo
@@ -175,7 +175,7 @@ class BruteForceUpstreamChangeFinderTest {
                 tempDir.resolve("new-module").toString()
         );
 
-        MockBruteForceUpstreamChangeFinder finder = new MockBruteForceUpstreamChangeFinder(
+        MockNaiveUpstreamChangeFinder finder = new MockNaiveUpstreamChangeFinder(
                 logger,
                 mockHistory,
                 testRepo
@@ -208,7 +208,7 @@ class BruteForceUpstreamChangeFinderTest {
                 tempDir.resolve("module").toString()
         );
 
-        MockBruteForceUpstreamChangeFinder finder = new MockBruteForceUpstreamChangeFinder(
+        MockNaiveUpstreamChangeFinder finder = new MockNaiveUpstreamChangeFinder(
                 logger,
                 mockHistory,
                 testRepo
@@ -240,7 +240,7 @@ class BruteForceUpstreamChangeFinderTest {
                 tempDir.resolve("module").toString()
         );
 
-        MockBruteForceUpstreamChangeFinder finder = new MockBruteForceUpstreamChangeFinder(
+        MockNaiveUpstreamChangeFinder finder = new MockNaiveUpstreamChangeFinder(
                 logger,
                 mockHistory,
                 testRepo
@@ -274,7 +274,7 @@ class BruteForceUpstreamChangeFinderTest {
                 tempDir.resolve("module1").toString()
         );
 
-        MockBruteForceUpstreamChangeFinder binaryFinder = new MockBruteForceUpstreamChangeFinder(
+        MockNaiveUpstreamChangeFinder binaryFinder = new MockNaiveUpstreamChangeFinder(
                 logger,
                 mockHistory1,
                 testRepo1
@@ -294,7 +294,7 @@ class BruteForceUpstreamChangeFinderTest {
                 tempDir.resolve("module2").toString()
         );
 
-        MockBruteForceUpstreamChangeFinder linearFinder = new MockBruteForceUpstreamChangeFinder(
+        MockNaiveUpstreamChangeFinder linearFinder = new MockNaiveUpstreamChangeFinder(
                 logger,
                 mockHistory2,
                 testRepo2
@@ -331,7 +331,7 @@ class BruteForceUpstreamChangeFinderTest {
                 tempDir.resolve("module1").toString()
         );
 
-        MockBruteForceUpstreamChangeFinder binaryFinder = new MockBruteForceUpstreamChangeFinder(
+        MockNaiveUpstreamChangeFinder binaryFinder = new MockNaiveUpstreamChangeFinder(
                 logger,
                 mockHistory1,
                 testRepo1
@@ -353,7 +353,7 @@ class BruteForceUpstreamChangeFinderTest {
                 tempDir.resolve("module2").toString()
         );
 
-        MockBruteForceUpstreamChangeFinder linearFinder = new MockBruteForceUpstreamChangeFinder(
+        MockNaiveUpstreamChangeFinder linearFinder = new MockNaiveUpstreamChangeFinder(
                 logger,
                 mockHistory2,
                 testRepo2
@@ -403,13 +403,13 @@ class BruteForceUpstreamChangeFinderTest {
     }
 
     /**
-     * Mock implementation of BruteForceUpstreamChangeFinder for testing.
+     * Mock implementation of NaiveUpstreamChangeFinder for testing.
      * Overrides repository setup to use the fake test repository.
      */
     @Vetoed
-    private static class MockBruteForceUpstreamChangeFinder extends BruteForceUpstreamChangeFinder {
+    private static class MockNaiveUpstreamChangeFinder extends NaiveUpstreamChangeFinder {
 
-        MockBruteForceUpstreamChangeFinder(Logger logger, FailureHistory failureHistory, Path mockRepo) {
+        MockNaiveUpstreamChangeFinder(Logger logger, FailureHistory failureHistory, Path mockRepo) {
             super(logger, failureHistory);
             // Set configuration manually for tests
             this.lookbackDays = 7;
