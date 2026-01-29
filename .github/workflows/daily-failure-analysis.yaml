@@ -267,9 +267,8 @@ jobs:
 
     - name: Upload history file
       uses: actions/upload-artifact@v4
-      if: always()
+      if: always() && hashFiles('failure-history.json') != ''
       with:
         name: failure-analysis-history
         path: failure-history.json
         retention-days: 30
-        if-no-files-found: warn
