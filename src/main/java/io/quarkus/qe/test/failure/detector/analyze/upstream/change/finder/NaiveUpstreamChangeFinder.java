@@ -20,6 +20,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -349,10 +350,12 @@ class NaiveUpstreamChangeFinder implements UpstreamChangeFinder {
 
     /**
      * Format an Instant as a git-compatible date string.
-     * Git accepts Unix epoch seconds which is simpler than ISO-8601 with nanoseconds.
+     * Git's --shallow-since accepts YYYY-MM-DD format.
      */
     private String formatGitDate(Instant instant) {
-        return String.valueOf(instant.getEpochSecond());
+        return instant.atZone(ZoneId.of("UTC"))
+                .toLocalDate()
+                .toString(); // Returns YYYY-MM-DD format
     }
 
     /**

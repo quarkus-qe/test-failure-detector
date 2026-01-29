@@ -17,10 +17,11 @@ final class CommandUtils {
      * - dd.MM.yyyy (e.g., 10.1.2026)
      * - yyyy-MM-dd (e.g., 2026-01-10)
      * - ISO-8601 instant (e.g., 2026-01-10T00:00:00Z)
+     * Returns null if from is null, allowing the caller to determine the reference time.
      */
     static Instant parseDate(String from) {
         if (from == null) {
-            return Instant.now();
+            return null;
         }
 
         // Try ISO-8601 instant first

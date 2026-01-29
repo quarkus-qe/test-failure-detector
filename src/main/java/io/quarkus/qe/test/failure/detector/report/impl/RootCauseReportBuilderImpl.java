@@ -84,26 +84,26 @@ final class RootCauseReportBuilderImpl implements RootCauseReportBuilder {
         }
 
         private static void printRootCause(int index, RootCause rootCause, StringBuilder resultBuilder) {
-            resultBuilder.append("Root Cause #").append(index).append(" [").append(rootCause.confidence()).append(" Confidence]");
-            resultBuilder.append("  Identifier: ").append(rootCause.identifier());
-            resultBuilder.append("  Module: ").append(rootCause.modulePath());
-            resultBuilder.append("  Summary: ").append(rootCause.summary());
+            resultBuilder.append(System.lineSeparator());
+            resultBuilder.append("Root Cause #").append(index).append(" [").append(rootCause.confidence()).append(" Confidence]").append(System.lineSeparator());
+            resultBuilder.append("  Identifier: ").append(rootCause.identifier()).append(System.lineSeparator());
+            resultBuilder.append("  Module: ").append(rootCause.modulePath()).append(System.lineSeparator());
+            resultBuilder.append("  Summary: ").append(rootCause.summary()).append(System.lineSeparator());
             resultBuilder.append("  Failures: ").append(rootCause.failures().size()).append(" (")
                     .append(rootCause.failures().size() - rootCause.metadata().dedupedFailures())
-                    .append(" primary + ").append(rootCause.metadata().dedupedFailures()).append(" deduplicated)");
+                    .append(" primary + ").append(rootCause.metadata().dedupedFailures()).append(" deduplicated)").append(System.lineSeparator());
 
-            resultBuilder.append("  Affected Tests:");
+            resultBuilder.append("  Affected Tests:").append(System.lineSeparator());
             for (FailureDetails failure : rootCause.failures()) {
                 String marker = failure.isPrimaryFailure() ? "[PRIMARY]" : "[DEDUPED]";
                 resultBuilder.append("    ").append(marker).append(" ")
                         .append(getSimpleClassName(failure.testClassName()))
-                        .append(".").append(failure.testMethodName());
+                        .append(".").append(failure.testMethodName()).append(System.lineSeparator());
                 if (failure.failureMessage() != null && !failure.failureMessage().isBlank()) {
                     String truncatedMessage = truncateMessage(failure.failureMessage());
-                    resultBuilder.append("      └─ ").append(truncatedMessage);
+                    resultBuilder.append("      └─ ").append(truncatedMessage).append(System.lineSeparator());
                 }
             }
-            resultBuilder.append(System.lineSeparator());
         }
 
         private static String getSimpleClassName(String fullyQualifiedName) {
