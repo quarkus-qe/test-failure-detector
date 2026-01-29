@@ -189,7 +189,8 @@ test-failure-detector LOCAL_DIRECTORY path/to/quarkus-test-framework/examples/ta
 2. **Root Cause Analysis**: Groups failures by common root causes
 3. **History Tracking**: Compares with previous runs to identify NEW, EXISTING, or RESOLVED failures
 4. **Git Bisect**: For NEW failures, performs binary search through Quarkus commits to find the culprit
-   - Clones only recent commits (based on lookback window)
+   - Clones Quarkus repo with `--depth=1` (most reliable for large repos)
+   - Incrementally deepens with `git fetch --deepen=50` until reaching the lookback window
    - Builds Quarkus with `./mvnw -T1C -DskipTests ...` for each commit
    - Runs the failing test against each build
    - Identifies the first commit where the test fails

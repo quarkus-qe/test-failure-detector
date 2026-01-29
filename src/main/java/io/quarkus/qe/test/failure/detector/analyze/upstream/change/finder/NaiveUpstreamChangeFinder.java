@@ -278,7 +278,7 @@ class NaiveUpstreamChangeFinder implements UpstreamChangeFinder {
 
     /**
      * Set up a git repository (clone or update).
-     * For Quarkus: uses shallow clone with only commits since the lookback period or last run
+     * For Quarkus: uses depth-based clone, then incrementally deepens until reaching target date
      * For Test Suite: uses shallow clone of main branch only
      */
     private Path setupGitRepository(String repoUrl, Path repoPath, String repoName) {
@@ -288,18 +288,20 @@ class NaiveUpstreamChangeFinder implements UpstreamChangeFinder {
             logger.info("Updating existing " + repoName + " repository at: " + repoPath);
 
             if (isQuarkusRepo) {
-                // Fetch commits from the lookback period
-                Instant shallowSince = calculateShallowSince();
-                logger.info("Fetching commits since: " + shallowSince + " (" + lookbackDays + " days back)");
-                runCommand(repoPath, "git", "fetch", "origin", "main",
-                        "--shallow-since=" + formatGitDate(shallowSince));
+                // For existing repo, just fetch and deepen as needed
+                runCommand(repoPath, "git", "fetch", "origin", "main");
+                runCommand(repoPath, "git", "checkout", "main");
+                runCommand(repoPath, "git", "reset", "--hard", "origin/main");
+
+                // Deepen until we reach the target date
+                Instant targetDate = calculateShallowSince();
+                deepenUntilDate(repoPath, targetDate);
             } else {
                 // For test suite, just fetch main
                 runCommand(repoPath, "git", "fetch", "origin", "main");
+                runCommand(repoPath, "git", "checkout", "main");
+                runCommand(repoPath, "git", "reset", "--hard", "origin/main");
             }
-
-            runCommand(repoPath, "git", "checkout", "main");
-            runCommand(repoPath, "git", "reset", "--hard", "origin/main");
         } else {
             logger.info("Cloning " + repoName + " repository to: " + repoPath);
             try {
@@ -309,13 +311,17 @@ class NaiveUpstreamChangeFinder implements UpstreamChangeFinder {
             }
 
             if (isQuarkusRepo) {
-                // Shallow clone since the lookback period
-                Instant shallowSince = calculateShallowSince();
-                logger.info("Shallow cloning since: " + shallowSince + " (" + lookbackDays + " days back)");
+                // Clone with depth 1 first (most reliable)
+                logger.info("Cloning with depth 1 (latest commit only)");
                 runCommand(repoPath.getParent(), "git", "clone",
-                        "--shallow-since=" + formatGitDate(shallowSince),
+                        "--depth=1",
                         "--single-branch", "--branch=main",
                         repoUrl, repoPath.getFileName().toString());
+
+                // Then deepen until we reach the target date
+                Instant targetDate = calculateShallowSince();
+                logger.info("Target date for history: " + targetDate + " (" + lookbackDays + " days back)");
+                deepenUntilDate(repoPath, targetDate);
             } else {
                 // Shallow clone of just main branch (for test suite)
                 logger.info("Shallow cloning main branch only (depth 5)");
@@ -326,6 +332,63 @@ class NaiveUpstreamChangeFinder implements UpstreamChangeFinder {
         }
 
         return repoPath;
+    }
+
+    /**
+     * Incrementally deepen a shallow clone until we have commits going back to the target date.
+     * Uses git fetch --deepen to avoid network issues with large clones.
+     */
+    private void deepenUntilDate(Path repoPath, Instant targetDate) {
+        int iterations = 0;
+        int maxIterations = 100; // Safety limit (50 commits * 100 = 5000 commits max)
+
+        while (iterations < maxIterations) {
+            // Get the oldest commit date in current shallow clone
+            Instant oldestCommitDate = getOldestCommitDate(repoPath);
+
+            if (oldestCommitDate == null) {
+                logger.error("Could not determine oldest commit date, stopping deepen");
+                break;
+            }
+
+            // Check if we've reached far enough back
+            if (oldestCommitDate.isBefore(targetDate) || oldestCommitDate.equals(targetDate)) {
+                logger.info("Reached target date. Oldest commit: " + oldestCommitDate);
+                break;
+            }
+
+            // Need to go deeper
+            logger.info("Deepening clone (iteration " + (iterations + 1) +
+                       ", oldest commit: " + oldestCommitDate + ")");
+            runCommand(repoPath, "git", "fetch", "--deepen=50");
+            iterations++;
+        }
+
+        if (iterations >= maxIterations) {
+            logger.error("Reached maximum deepen iterations (" + maxIterations + "), stopping");
+        }
+    }
+
+    /**
+     * Get the date of the oldest commit in the current repository.
+     * Returns null if unable to determine.
+     */
+    private Instant getOldestCommitDate(Path repoPath) {
+        try {
+            // Get the oldest commit's date
+            String output = runCommand(repoPath, "git", "log",
+                    "--reverse", "--format=%cI", "--max-count=1");
+
+            if (output == null || output.trim().isEmpty()) {
+                return null;
+            }
+
+            // Parse ISO 8601 date (output has newline, so trim it)
+            return Instant.parse(output.trim());
+        } catch (Exception e) {
+            logger.error("Failed to get oldest commit date: " + e.getMessage());
+            return null;
+        }
     }
 
     /**
