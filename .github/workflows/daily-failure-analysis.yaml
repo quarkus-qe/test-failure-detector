@@ -7,8 +7,12 @@ on:
     - cron: '0 12 * * *'
   workflow_dispatch:
     inputs:
+      run_url:
+        description: 'Specific run URL to analyze (optional, defaults to latest daily.yaml run). Example: https://github.com/quarkus-qe/quarkus-test-suite/actions/runs/20946183562'
+        required: false
+        type: string
       from:
-        description: 'Reference date to look back from (format: dd.MM.yyyy or yyyy-MM-dd, default: today)'
+        description: 'Reference date to look back from (format: dd.MM.yyyy or yyyy-MM-dd). Defaults to: run date if run_url provided, otherwise today'
         required: false
         type: string
       lookback_days:
@@ -184,8 +188,33 @@ jobs:
         # Use the downloaded executable
         EXECUTABLE="./test-failure-detector"
 
+        # Determine target URL (specific run or latest workflow run)
+        if [ -n "${{ inputs.run_url }}" ]; then
+          TARGET_URL="${{ inputs.run_url }}"
+          echo "Analyzing specific run: $TARGET_URL"
+
+          # Extract run ID from URL
+          RUN_ID=$(echo "$TARGET_URL" | sed -E 's|.*/runs/([0-9]+).*|\1|')
+
+          # Get run date if 'from' not explicitly provided
+          if [ -z "${{ inputs.from }}" ]; then
+            echo "Fetching run date for run ID: $RUN_ID"
+            RUN_DATE=$(gh api "repos/quarkus-qe/quarkus-test-suite/actions/runs/$RUN_ID" --jq '.created_at')
+            # Convert ISO date to dd.MM.yyyy format
+            FROM_DATE=$(date -d "$RUN_DATE" +%d.%m.%Y)
+            echo "Using run date as 'from': $FROM_DATE"
+          else
+            FROM_DATE="${{ inputs.from }}"
+            echo "Using explicitly provided from date: $FROM_DATE"
+          fi
+        else
+          TARGET_URL="https://github.com/quarkus-qe/quarkus-test-suite/actions/workflows/daily.yaml"
+          FROM_DATE="${{ inputs.from }}"
+          echo "Analyzing latest workflow run: $TARGET_URL"
+        fi
+
         # Build command arguments
-        ARGS="GITHUB_ACTION_ARTIFACTS https://github.com/quarkus-qe/quarkus-test-suite/actions/workflows/daily.yaml"
+        ARGS="GITHUB_ACTION_ARTIFACTS $TARGET_URL"
 
         # Add history file if it exists from previous run
         if [ -f failure-history.json ]; then
@@ -199,10 +228,10 @@ jobs:
         LOOKBACK="${{ inputs.lookback_days || '2' }}"
         ARGS="$ARGS --lookback-days=$LOOKBACK"
 
-        # Add from date if provided
-        if [ -n "${{ inputs.from }}" ]; then
-          echo "Using custom from date: ${{ inputs.from }}"
-          ARGS="$ARGS --from=${{ inputs.from }}"
+        # Add from date if set
+        if [ -n "$FROM_DATE" ]; then
+          echo "Using from date: $FROM_DATE"
+          ARGS="$ARGS --from=$FROM_DATE"
         fi
 
         # Add output file

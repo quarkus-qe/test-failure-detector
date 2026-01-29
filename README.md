@@ -264,10 +264,17 @@ You can manually trigger the analysis with custom parameters:
 1. Go to [Actions > Daily Failure Analysis](https://github.com/quarkus-qe/test-failure-detector/actions/workflows/daily-failure-analysis.yaml)
 2. Click "Run workflow"
 3. Configure optional parameters:
-   - **from**: Reference date to look back from (format: `dd.MM.yyyy` or `yyyy-MM-dd`, default: today)
+   - **run_url**: Specific run URL to analyze (optional)
+     - Example: `https://github.com/quarkus-qe/quarkus-test-suite/actions/runs/20946183562`
+     - If not provided, analyzes the latest `daily.yaml` workflow run
+   - **from**: Reference date to look back from (format: `dd.MM.yyyy` or `yyyy-MM-dd`)
+     - Default: If `run_url` is provided, uses that run's date; otherwise uses today
+     - Can be overridden to analyze a different time window
    - **lookback_days**: Number of days to look back for upstream changes (default: `2`)
 4. Click "Run workflow"
 
-**Default behavior**: Analyzes the last 48 hours of changes (today looking back 2 days).
+**Default behavior** (scheduled daily run): Analyzes the latest daily.yaml workflow run, looking back 2 days from today.
 
-**Custom example**: Set `from=25.01.2026` and `lookback_days=3` to analyze 3 days of changes starting from January 25th, 2026.
+**Analyze a specific run**: Set `run_url=https://github.com/quarkus-qe/quarkus-test-suite/actions/runs/20946183562` to analyze that specific run. The tool will automatically use the run's date as the reference point and look back 2 days from there.
+
+**Custom time window**: Set `from=25.01.2026` and `lookback_days=3` to analyze the latest workflow run, but look back 3 days from January 25th, 2026 for upstream Quarkus commits.
