@@ -250,9 +250,9 @@ class NaiveUpstreamChangeFinder implements UpstreamChangeFinder {
         // Set up test suite repository
         testSuiteRepo = setupTestSuiteRepository();
 
-        // Get commits from last 24 hours that haven't been tested
+        // Get commits to test (either last 50 if no history, or new commits since last run)
         untestedCommits = getUntestedCommits();
-        logger.info("Found " + untestedCommits.size() + " untested commits from last 24 hours");
+        logger.info("Found " + untestedCommits.size() + " commits to test");
     }
 
     /**
@@ -467,9 +467,12 @@ class NaiveUpstreamChangeFinder implements UpstreamChangeFinder {
     }
 
     /**
-     * Get commits from the last tested commit to HEAD that haven't been tested yet.
-     * This is the range ALL NEW failures will be tested against.
+     * Get commits to test for bisecting.
      * <p>
+     * If no previous history: Gets all commits from the lookback period (e.g., last 5 days)
+     * If previous history exists: Gets commits from last tested commit to HEAD
+     * <p>
+     * This is the range ALL NEW failures will be tested against.
      * Logic: If a test was passing in the last run and failing now,
      * it must have broken somewhere in the new commits since then.
      */
@@ -479,10 +482,13 @@ class NaiveUpstreamChangeFinder implements UpstreamChangeFinder {
         List<String> commits = new ArrayList<>();
 
         if (lastTestedCommit == null) {
-            // First run - get last 50 commits
-            logger.info("No previous history, getting last 50 commits");
+            // First run - get all commits from the lookback period
+            Instant targetDate = calculateShallowSince();
+            logger.info("No previous history, getting commits since " + targetDate + " (" + lookbackDays + " days back)");
+
+            // Get all commits since the target date (the repo was already deepened to this date)
             String commitList = runCommand(quarkusRepo, "git", "rev-list",
-                    "--first-parent", "-n", "50", "main");
+                    "--first-parent", "--since=" + targetDate.toString(), "HEAD");
 
             for (String commit : commitList.split("\n")) {
                 commit = commit.trim();
@@ -498,9 +504,11 @@ class NaiveUpstreamChangeFinder implements UpstreamChangeFinder {
             try {
                 runCommand(quarkusRepo, "git", "cat-file", "-e", lastTestedCommit);
             } catch (Exception e) {
-                logger.error("Last tested commit " + lastTestedCommit + " not found in repo, getting last 50 commits");
+                // Last tested commit not in repo - fall back to using lookback period
+                Instant targetDate = calculateShallowSince();
+                logger.error("Last tested commit " + lastTestedCommit + " not found in repo, getting commits since " + targetDate);
                 String commitList = runCommand(quarkusRepo, "git", "rev-list",
-                        "--first-parent", "-n", "50", "main");
+                        "--first-parent", "--since=" + targetDate.toString(), "HEAD");
                 for (String commit : commitList.split("\n")) {
                     commit = commit.trim();
                     if (!commit.isEmpty()) {
