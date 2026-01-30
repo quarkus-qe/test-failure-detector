@@ -907,32 +907,49 @@ class NaiveUpstreamChangeFinder implements UpstreamChangeFinder {
 
     /**
      * Extract the relative module path from the failure.
-     * For example, if modulePath is "/path/to/quarkus-test-suite/http/http-minimum",
-     * return "http/http-minimum"
+     * For example, if modulePath is "/bla/bla/quarkus-test-suite/a/b/c/d/e/target/failsafe-reports",
+     * return "a/b/c/d/e"
+     *
+     * We find the test suite project name in the path and extract everything after it.
      */
     private String extractModuleRelativePath(Failure failure) {
         String absolutePath = failure.modulePath();
 
-        // Find "quarkus-test-suite" or similar in the path
-        int testSuiteIndex = absolutePath.indexOf("quarkus-test-suite");
-        if (testSuiteIndex >= 0) {
-            // Get everything after "quarkus-test-suite/"
-            String afterTestSuite = absolutePath.substring(testSuiteIndex + "quarkus-test-suite".length());
-            if (afterTestSuite.startsWith("/")) {
-                afterTestSuite = afterTestSuite.substring(1);
-            }
-            return afterTestSuite;
+        // Strip /target/failsafe-reports or /failsafe-reports suffix
+        String pathWithoutSuffix = absolutePath;
+        if (pathWithoutSuffix.endsWith("/target/failsafe-reports")) {
+            pathWithoutSuffix = pathWithoutSuffix.substring(0,
+                pathWithoutSuffix.length() - "/target/failsafe-reports".length());
+        } else if (pathWithoutSuffix.endsWith("/failsafe-reports")) {
+            pathWithoutSuffix = pathWithoutSuffix.substring(0,
+                pathWithoutSuffix.length() - "/failsafe-reports".length());
+        } else if (pathWithoutSuffix.endsWith("/target")) {
+            pathWithoutSuffix = pathWithoutSuffix.substring(0,
+                pathWithoutSuffix.length() - "/target".length());
         }
 
-        // Fallback: try to extract the last two path components
-        // e.g., "/some/path/http/http-minimum" -> "http/http-minimum"
-        String[] parts = absolutePath.split("/");
+        // Look for test suite project name in the path (e.g., quarkus-test-suite, quarkus-qe-test-suite, quarkus-test-framework)
+        // and extract everything after it
+        String[] projectNames = {"quarkus-test-suite", "quarkus-test-framework"};
+        for (String projectName : projectNames) {
+            int index = pathWithoutSuffix.indexOf("/" + projectName + "/");
+            if (index >= 0) {
+                // Found the project name, extract everything after it
+                String afterProject = pathWithoutSuffix.substring(index + projectName.length() + 2);
+                return afterProject;
+            }
+        }
+
+        // Fallback: if no project name found
+        String[] parts = pathWithoutSuffix.split("/");
         if (parts.length >= 2) {
             return parts[parts.length - 2] + "/" + parts[parts.length - 1];
         }
+        String moduleRelativePath = parts[parts.length - 1];
+        logger.info("Failed to identify project name (maybe this project is not supported yet), "
+                + "guessing test relative path as " + moduleRelativePath);
 
-        // Last resort: return the last component
-        return parts[parts.length - 1];
+        return moduleRelativePath;
     }
 
     /**
