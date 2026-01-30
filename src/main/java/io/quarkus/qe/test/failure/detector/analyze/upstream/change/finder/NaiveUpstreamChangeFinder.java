@@ -816,11 +816,12 @@ class NaiveUpstreamChangeFinder implements UpstreamChangeFinder {
      * Run a specific test against the built Quarkus.
      */
     protected boolean runTest(Failure failure) {
+        // Extract test class simple name (outside try for use in catch block)
+        String testClass = failure.testClassName();
+        int lastDot = testClass.lastIndexOf('.');
+        String simpleClassName = lastDot >= 0 ? testClass.substring(lastDot + 1) : testClass;
+
         try {
-            // Extract test class simple name
-            String testClass = failure.testClassName();
-            int lastDot = testClass.lastIndexOf('.');
-            String simpleClassName = lastDot >= 0 ? testClass.substring(lastDot + 1) : testClass;
 
             // Extract module path from the failure
             // The modulePath is the absolute path to the module, we need relative path
@@ -897,6 +898,30 @@ class NaiveUpstreamChangeFinder implements UpstreamChangeFinder {
 
             return testPassed;
 
+        } catch (CommandFailureException e) {
+            logger.error("Test execution failed: " + e.getMessage());
+
+            // Save full test output to file for debugging
+            String logFileName = "test-failed-" + simpleClassName + "-" +
+                System.currentTimeMillis() + ".log";
+            Path logFile = Paths.get(logFileName);
+            try {
+                Files.writeString(logFile, e.getOutput());
+                logger.info("Full test log saved to: " + logFile.toAbsolutePath());
+            } catch (IOException ioEx) {
+                logger.error("Failed to save test log: " + ioEx.getMessage());
+            }
+
+            // Extract and log relevant failure information (last 20 lines typically show the summary)
+            logger.info("============ TEST FAILURE SUMMARY ============");
+            String[] lines = e.getOutput().split("\n");
+            int startLine = Math.max(0, lines.length - 20);
+            for (int i = startLine; i < lines.length; i++) {
+                logger.info(lines[i]);
+            }
+            logger.info("==============================================");
+
+            return false;
         } catch (Exception e) {
             logger.error("Test execution failed: " + e.getMessage());
             // If execution fails, assume test failed
@@ -1021,13 +1046,33 @@ class NaiveUpstreamChangeFinder implements UpstreamChangeFinder {
 
             int exitCode = process.waitFor();
             if (exitCode != 0) {
-                throw new RuntimeException("Command failed with exit code " + exitCode + ": " +
-                        String.join(" ", command));
+                // Create exception that includes the output
+                CommandFailureException ex = new CommandFailureException(
+                    "Command failed with exit code " + exitCode + ": " + String.join(" ", command),
+                    output.toString()
+                );
+                throw ex;
             }
 
             return output.toString();
         } catch (IOException | InterruptedException e) {
             throw new RuntimeException("Failed to execute command: " + String.join(" ", command), e);
+        }
+    }
+
+    /**
+     * Exception that includes command output for better error reporting.
+     */
+    private static class CommandFailureException extends RuntimeException {
+        private final String output;
+
+        CommandFailureException(String message, String output) {
+            super(message);
+            this.output = output;
+        }
+
+        String getOutput() {
+            return output;
         }
     }
 
