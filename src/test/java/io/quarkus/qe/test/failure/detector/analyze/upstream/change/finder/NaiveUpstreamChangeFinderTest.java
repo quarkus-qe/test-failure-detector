@@ -412,7 +412,7 @@ class NaiveUpstreamChangeFinderTest {
         MockNaiveUpstreamChangeFinder(Logger logger, FailureHistory failureHistory, Path mockRepo) {
             super(logger, failureHistory);
             // Set configuration manually for tests
-            this.lookbackDays = 7;
+            this.lookbackDays = Integer.MAX_VALUE;  // Use 15 days to get more commits for testing binary search efficiency
             this.from = Instant.now();
             this.bisectStrategy = AppConfig.BisectStrategy.BINARY; // Default to binary
             // Set the fake repository path

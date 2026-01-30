@@ -681,14 +681,20 @@ class NaiveUpstreamChangeFinder implements UpstreamChangeFinder {
                 logger.info("Test FAILED at commit: " + commit);
 
                 if (mid == low) {
-                    // Found the first failing commit
+                    // Found the first failing commit (at oldest boundary)
                     logger.info("Found first failing commit: " + commit);
                     String pullRequest = findPullRequest(commit);
                     String commitMessage = getCommitMessage(quarkusRepo, commit);
                     return new BisectResult(commit, pullRequest, commitMessage, testedCommits);
                 }
 
-                high = mid;
+                if (mid == high) {
+                    // At newest boundary, need to check if older commits also fail
+                    // Move high forward to continue binary search
+                    high = mid + 1;
+                } else {
+                    high = mid;
+                }
             }
         }
 
