@@ -356,15 +356,15 @@ class NaiveUpstreamChangeFinder implements UpstreamChangeFinder {
         int previousCommitCount = 0;
 
         while (iterations < maxIterations) {
-            // Deepen to get more commits
+            // Deepen to get more commits - specify 'origin main' to deepen that specific branch
             logger.info("Deepening clone (iteration " + (iterations + 1) + ")");
-            runCommand(repoPath, "git", "fetch", "--deepen=50");
+            runCommand(repoPath, "git", "fetch", "--deepen=50", "origin", "main");
             iterations++;
 
-            // Count total commits to detect if we got new ones
-            String countOutput = runCommand(repoPath, "git", "rev-list", "--count", "HEAD");
+            // Count total commits on main branch (first-parent only for accurate count)
+            String countOutput = runCommand(repoPath, "git", "rev-list", "--count", "--first-parent", "HEAD");
             int currentCommitCount = Integer.parseInt(countOutput.trim());
-            logger.info("  Repository now has " + currentCommitCount + " commits");
+            logger.info("  Main branch now has " + currentCommitCount + " commits");
 
             // Check if we got new commits
             if (currentCommitCount == previousCommitCount) {
@@ -373,7 +373,7 @@ class NaiveUpstreamChangeFinder implements UpstreamChangeFinder {
             }
             previousCommitCount = currentCommitCount;
 
-            // Get the oldest MERGE commit date
+            // Get the oldest MERGE commit date (first-parent only to follow main branch)
             Instant oldestMergeDate = getOldestCommitDate(repoPath);
             if (oldestMergeDate != null) {
                 logger.info("  Oldest merge commit: " + oldestMergeDate);
@@ -410,11 +410,13 @@ class NaiveUpstreamChangeFinder implements UpstreamChangeFinder {
      */
     private Instant getOldestCommitDate(Path repoPath) {
         try {
-            // Get the oldest MERGE commit's date
+            // Get the oldest MERGE commit's date on the main branch
+            // --first-parent: only follow the first parent (main branch history)
             // --merges: only show merge commits (commits with >1 parent)
-            // This ensures we check when changes actually landed, not when they were authored
+            // --reverse: show oldest first
+            // This ensures we check when changes actually landed on main, not when they were authored
             String output = runCommand(repoPath, "git", "log",
-                    "--reverse", "--format=%cI", "--max-count=1", "--merges");
+                    "--first-parent", "--reverse", "--format=%cI", "--max-count=1", "--merges", "HEAD");
 
             if (output.trim().isEmpty()) {
                 return null;
