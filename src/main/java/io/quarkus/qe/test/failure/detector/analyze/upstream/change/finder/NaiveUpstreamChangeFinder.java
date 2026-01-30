@@ -650,6 +650,9 @@ class NaiveUpstreamChangeFinder implements UpstreamChangeFinder {
                 logger.error("Build failed for commit " + commit + " - cannot complete bisect");
                 logger.error("This may indicate a build issue in Quarkus main branch at this commit");
                 logger.error("Check https://github.com/quarkusio/quarkus/commit/" + commit);
+                logger.error("Bisect incomplete due to build failure");
+                logger.info("Tested commits: " + String.join(", ", testedCommits));
+                return new BisectResult(null, null, null, testedCommits);
             } else {
                 boolean testPassed = runTest(failure);
                 if (!testPassed) {
@@ -661,7 +664,8 @@ class NaiveUpstreamChangeFinder implements UpstreamChangeFinder {
             }
         }
 
-        logger.info("Binary search completed - test passes on all tested commits, failure might be in test suite itself");
+        logger.info("Binary search completed - test passes on all tested commits");
+        logger.info("This suggests the failure is in the test suite itself, not in Quarkus");
         logger.info("Tested commits: " + String.join(", ", testedCommits));
         return new BisectResult(null, null, null, testedCommits);
     }
@@ -678,17 +682,46 @@ class NaiveUpstreamChangeFinder implements UpstreamChangeFinder {
 
             boolean success = output.contains("BUILD SUCCESS");
             if (!success) {
-                // Log build failure details - show last 50 lines of output
+                // Extract and log the actual error
+                logger.error("============ BUILD FAILED ============");
+
+                // Look for compilation errors
                 String[] lines = output.split("\n");
-                int startLine = Math.max(0, lines.length - 50);
-                logger.error("Build failed. Last 50 lines of output:");
-                for (int i = startLine; i < lines.length; i++) {
-                    logger.error("  " + lines[i]);
+                boolean inErrorSection = false;
+                int errorLinesShown = 0;
+
+                for (String line : lines) {
+                    // Detect error sections
+                    if (line.contains("[ERROR]") || line.contains("BUILD FAILURE") ||
+                        line.contains("COMPILATION ERROR") || line.contains("Failed to execute")) {
+                        inErrorSection = true;
+                    }
+
+                    // Show error lines
+                    if (inErrorSection && errorLinesShown < 100) {
+                        logger.error(line);
+                        errorLinesShown++;
+                    }
+
+                    // Stop at build summary
+                    if (line.contains("BUILD FAILURE") && errorLinesShown > 0) {
+                        break;
+                    }
                 }
+
+                // If we didn't find specific errors, show last 30 lines
+                if (errorLinesShown == 0) {
+                    logger.error("No specific error found in output. Last 30 lines:");
+                    int startLine = Math.max(0, lines.length - 30);
+                    for (int i = startLine; i < lines.length; i++) {
+                        logger.error(lines[i]);
+                    }
+                }
+                logger.error("======================================");
             }
             return success;
         } catch (Exception e) {
-            logger.error("Build failed: " + e.getMessage());
+            logger.error("Build command failed to execute: " + e.getMessage());
             return false;
         }
     }

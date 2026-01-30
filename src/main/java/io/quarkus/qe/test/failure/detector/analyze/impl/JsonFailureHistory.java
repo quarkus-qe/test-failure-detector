@@ -48,6 +48,12 @@ class JsonFailureHistory implements FailureHistory {
         }
 
         try {
+            // Check if file is empty (0 bytes)
+            if (Files.size(historyPath) == 0) {
+                logger.info("History file exists but is empty, starting fresh");
+                return HistoryData.empty();
+            }
+
             logger.info("Loading failure history from: " + historyPath);
             return objectMapper.readValue(historyPath.toFile(), HistoryData.class);
         } catch (IOException e) {
