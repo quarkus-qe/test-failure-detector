@@ -101,6 +101,10 @@ jobs:
       with:
         ref: v${{ inputs.version }}
 
+    - name: Reclaim Disk Space
+      if: matrix.os == 'ubuntu-latest'
+      run: .github/ci-prerequisites.sh
+
     - name: Set up GraalVM JDK 25
       uses: graalvm/setup-graalvm@v1
       with:
@@ -108,6 +112,9 @@ jobs:
         distribution: 'graalvm'
         github-token: ${{ secrets.GITHUB_TOKEN }}
         cache: 'maven'
+
+    - uses: ./.github/actions/use-docker-mirror
+      if: matrix.os == 'ubuntu-latest'
 
     - name: Cache Maven packages
       uses: actions/cache@v4
