@@ -145,6 +145,14 @@ final class FailSafeFinderStrategy implements FailuresFinderStrategy {
     private static Failure createFailure(Element testcase, Element failureElement, Path reportFile) {
         String testClassName = testcase.getAttribute("classname");
         String testMethodName = testcase.getAttribute("name");
+
+        // Strip parameterized test suffixes like "(QuarkusVersionAwareCliClient)[1]"
+        // We only want the method name, not the parameters
+        int paramStart = testMethodName.indexOf('(');
+        if (paramStart > 0) {
+            testMethodName = testMethodName.substring(0, paramStart);
+        }
+
         String failureMessage = failureElement.getAttribute("message");
         String failureType = failureElement.getAttribute("type");
         String testRunLog = failureElement.getTextContent();

@@ -252,7 +252,6 @@ class NaiveUpstreamChangeFinder implements UpstreamChangeFinder {
 
         // Get commits to test (either last 50 if no history, or new commits since last run)
         untestedCommits = getUntestedCommits();
-        logger.info("Found " + untestedCommits.size() + " commits to test");
     }
 
     /**
