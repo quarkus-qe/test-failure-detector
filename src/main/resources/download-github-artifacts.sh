@@ -59,13 +59,14 @@ if [ -z "$RUN_ID" ]; then
     echo "Finding latest completed run for workflow..."
 
     # Get the latest completed run for this workflow
+    # Note: Don't use --status completed, it has a bug where it misses some completed runs
+    # Instead, get recent runs and filter for completed status
     RUN_ID=$(gh run list \
         --repo "$REPO" \
         --workflow "$WORKFLOW_FILE" \
-        --status completed \
-        --limit 1 \
-        --json databaseId \
-        --jq '.[0].databaseId')
+        --limit 10 \
+        --json databaseId,status \
+        --jq '.[] | select(.status == "completed") | .databaseId' | head -1)
 
     if [ -z "$RUN_ID" ] || [ "$RUN_ID" = "null" ]; then
         echo "Error: No completed runs found for workflow $WORKFLOW_FILE" >&2
