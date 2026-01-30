@@ -964,8 +964,26 @@ class NaiveUpstreamChangeFinder implements UpstreamChangeFinder {
             }
         }
 
-        // Fallback: if no project name found
+        // Special handling for GitHub artifacts temp directories (github-artifacts-<uuid>)
+        // Extract everything after the temp directory name
         String[] parts = pathWithoutSuffix.split("/");
+        for (int i = 0; i < parts.length; i++) {
+            if (parts[i].startsWith("github-artifacts-")) {
+                // Found the temp artifacts directory, extract everything after it
+                StringBuilder modulePathBuilder = new StringBuilder();
+                for (int j = i + 1; j < parts.length; j++) {
+                    if (!modulePathBuilder.isEmpty()) {
+                        modulePathBuilder.append("/");
+                    }
+                    modulePathBuilder.append(parts[j]);
+                }
+                String modulePath = modulePathBuilder.toString();
+                logger.info("Extracted module path from GitHub artifacts: " + modulePath);
+                return modulePath;
+            }
+        }
+
+        // Fallback: if no project name found
         if (parts.length >= 2) {
             return parts[parts.length - 2] + "/" + parts[parts.length - 1];
         }
