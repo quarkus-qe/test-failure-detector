@@ -239,7 +239,7 @@ jobs:
       with:
         name: failure-analysis-report-${{ github.run_number }}
         path: failure-report.txt
-        retention-days: 30
+        retention-days: 5
         if-no-files-found: warn
 
     - name: Upload history file
@@ -248,7 +248,7 @@ jobs:
       with:
         name: failure-analysis-history
         path: failure-history.json
-        retention-days: 30
+        retention-days: 5
 
     - name: Upload Quarkus build failure logs
       uses: actions/upload-artifact@v4
@@ -256,5 +256,14 @@ jobs:
       with:
         name: quarkus-build-logs-${{ github.run_number }}
         path: quarkus-build-failed-*.log
-        retention-days: 30
+        retention-days: 5
+        if-no-files-found: ignore
+
+    - name: Upload test failure logs
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: test-failure-logs-${{ github.run_number }}
+        path: test-failed-*.log
+        retention-days: 5
         if-no-files-found: ignore
