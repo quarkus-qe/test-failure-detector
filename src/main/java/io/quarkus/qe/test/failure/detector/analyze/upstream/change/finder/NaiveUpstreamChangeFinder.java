@@ -280,7 +280,7 @@ class NaiveUpstreamChangeFinder implements UpstreamChangeFinder {
     /**
      * Set up a git repository (clone or update).
      * For Quarkus: uses depth-based clone, then incrementally deepens until reaching target date
-     * For Test Suite: uses shallow clone of main branch only
+     * For Test Suite: uses depth=1 clone (we only need current state to run tests, no history)
      */
     private Path setupGitRepository(String repoUrl, Path repoPath, String repoName) {
         boolean isQuarkusRepo = repoUrl.contains("quarkusio/quarkus");
@@ -325,9 +325,10 @@ class NaiveUpstreamChangeFinder implements UpstreamChangeFinder {
                 deepenUntilDate(repoPath, targetDate);
             } else {
                 // Shallow clone of just main branch (for test suite)
-                logger.info("Shallow cloning main branch only (depth 5)");
+                // We only need the latest state to run tests, no history needed
+                logger.info("Shallow cloning main branch only (depth 1)");
                 runCommand(repoPath.getParent(), "git", "clone",
-                        "--depth=5", "--single-branch", "--branch=main",
+                        "--depth=1", "--single-branch", "--branch=main",
                         repoUrl, repoPath.getFileName().toString());
             }
         }
