@@ -695,13 +695,13 @@ class NaiveUpstreamChangeFinder implements UpstreamChangeFinder {
      * Build Quarkus with quick profile.
      */
     protected boolean buildQuarkus(String commit) {
-        logger.info("Building Quarkus with './mvnw -T1C ...'");
+        logger.info("Building Quarkus with 'MAVEN_OPTS=\"-Xmx4g\" ./mvnw -Dquickly' (as per CONTRIBUTING.md)");
 
-        ProcessBuilder pb = new ProcessBuilder("./mvnw", "-T1C", "-DskipDocs", "-DskipTests",
-                "-DskipITs", "-Dinvoker.skip", "-DskipExtensionValidation", "-Dskip.gradle.tests",
-                "-Dskip.gradle.build", "-Dtruststore.skip","-Dno-format", "-Djbang.skip", "clean", "install");
+        ProcessBuilder pb = new ProcessBuilder("./mvnw", "-Dquickly");
         pb.directory(quarkusRepo.toFile());
         pb.redirectErrorStream(true);
+        // Set MAVEN_OPTS as recommended in https://github.com/quarkusio/quarkus/blob/main/CONTRIBUTING.md
+        pb.environment().put("MAVEN_OPTS", "-Xmx4g");
 
         try {
             Process process = pb.start();
