@@ -339,43 +339,53 @@ class NaiveUpstreamChangeFinder implements UpstreamChangeFinder {
     /**
      * Incrementally deepen a shallow clone until we have commits going back to the target date.
      * Uses git fetch --deepen to avoid network issues with large clones.
+     *
+     * Logic:
+     * 1. Clone with depth=1 (just latest commit)
+     * 2. Deepen by 50 commits
+     * 3. Check if we got new commits (compare commit count)
+     * 4. Check if oldest merge commit is older than target date
+     * 5. Stop when: no new commits OR oldest merge is old enough
+     *
      * Only checks merge commits for date comparison since individual commits may have
      * old dates from when they were created in PRs, not when they were merged.
      */
     private void deepenUntilDate(Path repoPath, Instant targetDate) {
         int iterations = 0;
         int maxIterations = 100; // Safety limit (50 commits * 100 = 5000 commits max)
-        Instant previousOldestCommitDate = null;
+        int previousCommitCount = 0;
 
         while (iterations < maxIterations) {
-            // Get the oldest MERGE commit date in current shallow clone
-            Instant oldestCommitDate = getOldestCommitDate(repoPath);
-
-            if (oldestCommitDate == null) {
-                logger.error("Could not determine oldest merge commit date, stopping deepen");
-                break;
-            }
-
-            // Check if we've reached far enough back
-            if (oldestCommitDate.isBefore(targetDate) || oldestCommitDate.equals(targetDate)) {
-                logger.info("Reached target date. Oldest merge commit: " + oldestCommitDate);
-                break;
-            }
-
-            // Check if deepen made progress (oldest merge commit changed)
-            if (oldestCommitDate.equals(previousOldestCommitDate)) {
-                logger.info("Deepening stopped making progress - reached end of repository history");
-                logger.info("Oldest merge commit: " + oldestCommitDate + ", target was: " + targetDate);
-                logger.info("This is normal if the repository doesn't have merge commits going back that far");
-                break;
-            }
-
-            // Need to go deeper
-            logger.info("Deepening clone (iteration " + (iterations + 1) +
-                       ", oldest merge commit: " + oldestCommitDate + ")");
-            previousOldestCommitDate = oldestCommitDate;
+            // Deepen to get more commits
+            logger.info("Deepening clone (iteration " + (iterations + 1) + ")");
             runCommand(repoPath, "git", "fetch", "--deepen=50");
             iterations++;
+
+            // Count total commits to detect if we got new ones
+            String countOutput = runCommand(repoPath, "git", "rev-list", "--count", "HEAD");
+            int currentCommitCount = Integer.parseInt(countOutput.trim());
+            logger.info("  Repository now has " + currentCommitCount + " commits");
+
+            // Check if we got new commits
+            if (currentCommitCount == previousCommitCount) {
+                logger.info("  No new commits fetched - reached end of repository history");
+                break;
+            }
+            previousCommitCount = currentCommitCount;
+
+            // Get the oldest MERGE commit date
+            Instant oldestMergeDate = getOldestCommitDate(repoPath);
+            if (oldestMergeDate != null) {
+                logger.info("  Oldest merge commit: " + oldestMergeDate);
+
+                // Check if all merge commits are older than target date
+                if (oldestMergeDate.isBefore(targetDate) || oldestMergeDate.equals(targetDate)) {
+                    logger.info("  Reached target date (" + targetDate + ")");
+                    break;
+                }
+            } else {
+                logger.info("  No merge commits found yet (deepening further)");
+            }
         }
 
         if (iterations >= maxIterations) {
