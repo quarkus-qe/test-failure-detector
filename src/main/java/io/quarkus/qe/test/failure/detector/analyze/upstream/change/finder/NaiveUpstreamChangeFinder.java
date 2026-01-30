@@ -872,6 +872,26 @@ class NaiveUpstreamChangeFinder implements UpstreamChangeFinder {
 
             if (!testPassed) {
                 logger.info("Test FAILED");
+
+                // Save full test output to file for debugging
+                String logFileName = "test-failed-" + simpleClassName + "-" +
+                    System.currentTimeMillis() + ".log";
+                Path logFile = Paths.get(logFileName);
+                try {
+                    Files.writeString(logFile, output);
+                    logger.info("Full test log saved to: " + logFile.toAbsolutePath());
+                } catch (IOException e) {
+                    logger.error("Failed to save test log: " + e.getMessage());
+                }
+
+                // Extract and log relevant failure information (last 20 lines typically show the summary)
+                logger.info("============ TEST FAILURE SUMMARY ============");
+                String[] lines = output.split("\n");
+                int startLine = Math.max(0, lines.length - 20);
+                for (int i = startLine; i < lines.length; i++) {
+                    logger.info(lines[i]);
+                }
+                logger.info("==============================================");
             } else {
                 logger.info("Test PASSED");
             }
