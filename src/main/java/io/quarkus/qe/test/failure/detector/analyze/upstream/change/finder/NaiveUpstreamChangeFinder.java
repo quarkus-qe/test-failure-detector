@@ -884,13 +884,10 @@ class NaiveUpstreamChangeFinder implements UpstreamChangeFinder {
                     logger.error("Failed to save test log: " + e.getMessage());
                 }
 
-                // Extract and log relevant failure information (last 20 lines typically show the summary)
-                logger.info("============ TEST FAILURE SUMMARY ============");
-                String[] lines = output.split("\n");
-                int startLine = Math.max(0, lines.length - 20);
-                for (int i = startLine; i < lines.length; i++) {
-                    logger.info(lines[i]);
-                }
+                // Extract and log relevant failure information
+                logger.info("============ TEST FAILURE DETAILS ============");
+                String failureDetails = extractTestFailureDetails(output);
+                logger.info(failureDetails);
                 logger.info("==============================================");
             } else {
                 logger.info("Test PASSED");
@@ -912,13 +909,10 @@ class NaiveUpstreamChangeFinder implements UpstreamChangeFinder {
                 logger.error("Failed to save test log: " + ioEx.getMessage());
             }
 
-            // Extract and log relevant failure information (last 20 lines typically show the summary)
-            logger.info("============ TEST FAILURE SUMMARY ============");
-            String[] lines = e.getOutput().split("\n");
-            int startLine = Math.max(0, lines.length - 20);
-            for (int i = startLine; i < lines.length; i++) {
-                logger.info(lines[i]);
-            }
+            // Extract and log relevant failure information
+            logger.info("============ TEST FAILURE DETAILS ============");
+            String failureDetails = extractTestFailureDetails(e.getOutput());
+            logger.info(failureDetails);
             logger.info("==============================================");
 
             return false;
@@ -927,6 +921,57 @@ class NaiveUpstreamChangeFinder implements UpstreamChangeFinder {
             // If execution fails, assume test failed
             return false;
         }
+    }
+
+    /**
+     * Extract relevant test failure details from Maven output.
+     * Looks for test execution results and failure markers rather than just the last N lines.
+     */
+    private String extractTestFailureDetails(String output) {
+        String[] lines = output.split("\n");
+        StringBuilder details = new StringBuilder();
+
+        // Look for test result lines (e.g., "Tests run: 1, Failures: 1, Errors: 0, Skipped: 0")
+        // and failure markers (e.g., "<<< FAILURE!" or "<<< ERROR!")
+        int foundRelevantLines = 0;
+        final int maxLines = 50; // Show up to 50 relevant lines
+
+        for (int i = 0; i < lines.length && foundRelevantLines < maxLines; i++) {
+            String line = lines[i];
+
+            // Check if this line is relevant
+            boolean isRelevant = line.contains("Tests run:")
+                || line.contains("<<< FAILURE!")
+                || line.contains("<<< ERROR!")
+                || line.contains("BUILD FAILURE")
+                || line.contains("Failed to execute goal")
+                || line.contains("[ERROR]")
+                || (line.contains("[INFO]") && line.contains("FAILURE"));
+
+            if (isRelevant) {
+                // Include this line and some context around it
+                int contextStart = Math.max(0, i - 2);
+                int contextEnd = Math.min(lines.length - 1, i + 5);
+
+                for (int j = contextStart; j <= contextEnd && foundRelevantLines < maxLines; j++) {
+                    if (j >= i || foundRelevantLines == 0) { // Avoid duplicate context
+                        details.append(lines[j]).append("\n");
+                        foundRelevantLines++;
+                    }
+                }
+                i = contextEnd; // Skip ahead to avoid duplicates
+            }
+        }
+
+        // If we didn't find specific failure patterns, fall back to last 30 lines
+        if (foundRelevantLines == 0) {
+            int startLine = Math.max(0, lines.length - 30);
+            for (int i = startLine; i < lines.length; i++) {
+                details.append(lines[i]).append("\n");
+            }
+        }
+
+        return details.toString();
     }
 
     /**
