@@ -341,6 +341,7 @@ class NaiveUpstreamChangeFinder implements UpstreamChangeFinder {
     private void deepenUntilDate(Path repoPath, Instant targetDate) {
         int iterations = 0;
         int maxIterations = 100; // Safety limit (50 commits * 100 = 5000 commits max)
+        Instant previousOldestCommitDate = null;
 
         while (iterations < maxIterations) {
             // Get the oldest commit date in current shallow clone
@@ -357,9 +358,18 @@ class NaiveUpstreamChangeFinder implements UpstreamChangeFinder {
                 break;
             }
 
+            // Check if deepen made progress (oldest commit changed)
+            if (oldestCommitDate.equals(previousOldestCommitDate)) {
+                logger.info("Deepening stopped making progress - reached end of repository history");
+                logger.info("Oldest commit: " + oldestCommitDate + ", target was: " + targetDate);
+                logger.info("This is normal if the repository doesn't have commits going back that far");
+                break;
+            }
+
             // Need to go deeper
             logger.info("Deepening clone (iteration " + (iterations + 1) +
                        ", oldest commit: " + oldestCommitDate + ")");
+            previousOldestCommitDate = oldestCommitDate;
             runCommand(repoPath, "git", "fetch", "--deepen=50");
             iterations++;
         }
@@ -379,7 +389,7 @@ class NaiveUpstreamChangeFinder implements UpstreamChangeFinder {
             String output = runCommand(repoPath, "git", "log",
                     "--reverse", "--format=%cI", "--max-count=1");
 
-            if (output == null || output.trim().isEmpty()) {
+            if (output.trim().isEmpty()) {
                 return null;
             }
 
@@ -411,18 +421,9 @@ class NaiveUpstreamChangeFinder implements UpstreamChangeFinder {
     }
 
     /**
-     * Format an Instant as a git-compatible date string.
-     * Git's --shallow-since requires ISO 8601 format with time (e.g., 2026-01-25T00:00:00Z).
-     * Must truncate to seconds as git doesn't support nanosecond precision.
-     */
-    private String formatGitDate(Instant instant) {
-        return instant.truncatedTo(java.time.temporal.ChronoUnit.SECONDS).toString();
-    }
-
-    /**
      * Get commits from the last tested commit to HEAD that haven't been tested yet.
      * This is the range ALL NEW failures will be tested against.
-     *
+     * <p>
      * Logic: If a test was passing in the last run and failing now,
      * it must have broken somewhere in the new commits since then.
      */
