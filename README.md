@@ -196,6 +196,23 @@ test-failure-detector LOCAL_DIRECTORY path/to/quarkus-test-framework/examples/ta
    - Identifies the first commit where the test fails
 5. **Reporting**: Generates a detailed report with upstream commits and PR numbers
 
+## Development
+
+For development workflows, debugging, and cleaning up test data, see **[DEVELOPMENT.md](DEVELOPMENT.md)**.
+
+**Quick reference**:
+
+```bash
+# Clean all previous daily workflow runs and artifacts (start from scratch)
+./scripts/clean-daily-runs.sh
+
+# Run tests
+mvn test
+
+# Build locally
+mvn clean package
+```
+
 ## Creating a Release
 
 To create a new release:
