@@ -338,6 +338,8 @@ class NaiveUpstreamChangeFinder implements UpstreamChangeFinder {
     /**
      * Incrementally deepen a shallow clone until we have commits going back to the target date.
      * Uses git fetch --deepen to avoid network issues with large clones.
+     * Only checks merge commits for date comparison since individual commits may have
+     * old dates from when they were created in PRs, not when they were merged.
      */
     private void deepenUntilDate(Path repoPath, Instant targetDate) {
         int iterations = 0;
@@ -345,31 +347,31 @@ class NaiveUpstreamChangeFinder implements UpstreamChangeFinder {
         Instant previousOldestCommitDate = null;
 
         while (iterations < maxIterations) {
-            // Get the oldest commit date in current shallow clone
+            // Get the oldest MERGE commit date in current shallow clone
             Instant oldestCommitDate = getOldestCommitDate(repoPath);
 
             if (oldestCommitDate == null) {
-                logger.error("Could not determine oldest commit date, stopping deepen");
+                logger.error("Could not determine oldest merge commit date, stopping deepen");
                 break;
             }
 
             // Check if we've reached far enough back
             if (oldestCommitDate.isBefore(targetDate) || oldestCommitDate.equals(targetDate)) {
-                logger.info("Reached target date. Oldest commit: " + oldestCommitDate);
+                logger.info("Reached target date. Oldest merge commit: " + oldestCommitDate);
                 break;
             }
 
-            // Check if deepen made progress (oldest commit changed)
+            // Check if deepen made progress (oldest merge commit changed)
             if (oldestCommitDate.equals(previousOldestCommitDate)) {
                 logger.info("Deepening stopped making progress - reached end of repository history");
-                logger.info("Oldest commit: " + oldestCommitDate + ", target was: " + targetDate);
-                logger.info("This is normal if the repository doesn't have commits going back that far");
+                logger.info("Oldest merge commit: " + oldestCommitDate + ", target was: " + targetDate);
+                logger.info("This is normal if the repository doesn't have merge commits going back that far");
                 break;
             }
 
             // Need to go deeper
             logger.info("Deepening clone (iteration " + (iterations + 1) +
-                       ", oldest commit: " + oldestCommitDate + ")");
+                       ", oldest merge commit: " + oldestCommitDate + ")");
             previousOldestCommitDate = oldestCommitDate;
             runCommand(repoPath, "git", "fetch", "--deepen=50");
             iterations++;
@@ -381,14 +383,27 @@ class NaiveUpstreamChangeFinder implements UpstreamChangeFinder {
     }
 
     /**
-     * Get the date of the oldest commit in the current repository.
+     * Get the date of the oldest MERGE commit in the current repository.
+     * Only merge commits are considered because individual commits may have been
+     * created weeks ago but only merged recently. The merge date is what matters
+     * for determining the actual timeline of changes.
+     *
+     * Example scenario:
+     * - Developer creates commit on Jan 1 in a PR
+     * - PR sits in review for 2 weeks
+     * - Merged to main on Jan 15
+     * - Commit keeps Jan 1 date, but merge commit has Jan 15 date
+     * - We need Jan 15 (merge date) not Jan 1 (commit date)
+     *
      * Returns null if unable to determine.
      */
     private Instant getOldestCommitDate(Path repoPath) {
         try {
-            // Get the oldest commit's date
+            // Get the oldest MERGE commit's date
+            // --merges: only show merge commits (commits with >1 parent)
+            // This ensures we check when changes actually landed, not when they were authored
             String output = runCommand(repoPath, "git", "log",
-                    "--reverse", "--format=%cI", "--max-count=1");
+                    "--reverse", "--format=%cI", "--max-count=1", "--merges");
 
             if (output.trim().isEmpty()) {
                 return null;
