@@ -676,18 +676,34 @@ class NaiveUpstreamChangeFinder implements UpstreamChangeFinder {
      */
     protected boolean buildQuarkus() {
         logger.info("Building Quarkus with './mvnw -T1C ...'");
-        try {
-            String output = runCommand(quarkusRepo, "./mvnw", "-T1C", "-DskipDocs", "-DskipTests",
-                    "-DskipITs", "-Dinvoker.skip", "-DskipExtensionValidation", "-Dskip.gradle.tests",
-                    "-Dskip.gradle.build", "-Dtruststore.skip","-Dno-format", "-Djbang.skip", "clean", "install");
 
-            boolean success = output.contains("BUILD SUCCESS");
+        ProcessBuilder pb = new ProcessBuilder("./mvnw", "-T1C", "-DskipDocs", "-DskipTests",
+                "-DskipITs", "-Dinvoker.skip", "-DskipExtensionValidation", "-Dskip.gradle.tests",
+                "-Dskip.gradle.build", "-Dtruststore.skip","-Dno-format", "-Djbang.skip", "clean", "install");
+        pb.directory(quarkusRepo.toFile());
+        pb.redirectErrorStream(true);
+
+        try {
+            Process process = pb.start();
+            StringBuilder output = new StringBuilder();
+
+            try (BufferedReader reader = new BufferedReader(
+                    new InputStreamReader(process.getInputStream()))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    output.append(line).append("\n");
+                }
+            }
+
+            int exitCode = process.waitFor();
+            boolean success = (exitCode == 0);
+
             if (!success) {
                 // Extract and log the actual error
-                logger.error("============ BUILD FAILED ============");
+                logger.error("============ BUILD FAILED (exit code: " + exitCode + ") ============");
 
                 // Look for compilation errors
-                String[] lines = output.split("\n");
+                String[] lines = output.toString().split("\n");
                 boolean inErrorSection = false;
                 int errorLinesShown = 0;
 
@@ -721,8 +737,11 @@ class NaiveUpstreamChangeFinder implements UpstreamChangeFinder {
                 logger.error("======================================");
             }
             return success;
-        } catch (Exception e) {
+        } catch (IOException | InterruptedException e) {
             logger.error("Build command failed to execute: " + e.getMessage());
+            if (e instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+            }
             return false;
         }
     }
