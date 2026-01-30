@@ -22,7 +22,9 @@ import java.nio.file.Paths;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.regex.Matcher;
@@ -614,11 +616,41 @@ class NaiveUpstreamChangeFinder implements UpstreamChangeFinder {
         int low = commitsToTest.size() - 1;  // oldest commit index
         int high = 0;  // newest commit index
 
+        // Track test results to avoid retesting the same commit
+        Map<String, Boolean> commitTestResults = new HashMap<>();
+
         logger.info("Binary search range: " + commitsToTest.size() + " commits");
 
         while (low > high) {
             int mid = high + (low - high) / 2;
             String commit = commitsToTest.get(mid);
+
+            // Check if we already tested this commit
+            if (commitTestResults.containsKey(commit)) {
+                logger.info("Commit " + commit + " at index " + mid + " already tested, using cached result");
+                boolean testPassed = commitTestResults.get(commit);
+
+                if (testPassed) {
+                    logger.info("Test PASSED at commit: " + commit);
+                    low = mid - 1;
+                } else {
+                    logger.info("Test FAILED at commit: " + commit);
+
+                    if (mid == low) {
+                        logger.info("Found first failing commit: " + commit);
+                        String pullRequest = findPullRequest(commit);
+                        String commitMessage = getCommitMessage(quarkusRepo, commit);
+                        return new BisectResult(commit, pullRequest, commitMessage, testedCommits);
+                    }
+
+                    if (mid == high) {
+                        high = mid + 1;
+                    } else {
+                        high = mid;
+                    }
+                }
+                continue;
+            }
 
             logger.info("Binary search: testing commit at index " + mid + " (range: " + high + "-" + low + "): " + commit);
 
@@ -670,6 +702,9 @@ class NaiveUpstreamChangeFinder implements UpstreamChangeFinder {
 
             // Run the test
             boolean testPassed = runTest(failure);
+
+            // Cache the test result to avoid retesting
+            commitTestResults.put(commit, testPassed);
 
             if (testPassed) {
                 // Test passed, so failure is in newer commits (lower indices)

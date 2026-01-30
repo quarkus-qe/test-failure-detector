@@ -171,7 +171,10 @@ for artifact_dir in "$TEMP_DOWNLOAD_DIR"/*; do
 
         echo "  Copying extracted files from $artifact_name to output directory"
         if [ -d "$artifact_dir" ]; then
-            cp -r "$artifact_dir"/* "$OUTPUT_DIR/" 2>/dev/null || true
+            # Create a subdirectory for this artifact to avoid conflicts
+            ARTIFACT_OUTPUT_DIR="$OUTPUT_DIR/$artifact_name"
+            mkdir -p "$ARTIFACT_OUTPUT_DIR"
+            cp -r "$artifact_dir"/* "$ARTIFACT_OUTPUT_DIR/" 2>/dev/null || true
         fi
     fi
 done
