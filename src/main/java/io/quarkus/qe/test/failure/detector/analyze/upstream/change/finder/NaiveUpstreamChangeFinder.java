@@ -410,20 +410,30 @@ class NaiveUpstreamChangeFinder implements UpstreamChangeFinder {
      */
     private Instant getOldestCommitDate(Path repoPath) {
         try {
-            // Get the oldest MERGE commit's date on the main branch
+            // Get ALL merge commit dates on main branch
             // --first-parent: only follow the first parent (main branch history)
-            // --merges: only show merge commits (commits with >1 parent)
-            // --reverse: show oldest first
-            // This ensures we check when changes actually landed on main, not when they were authored
+            // --merges: only show merge commits
+            // --format=%cI: committer date in ISO format (one per line)
             String output = runCommand(repoPath, "git", "log",
-                    "--first-parent", "--reverse", "--format=%cI", "--max-count=1", "--merges", "HEAD");
+                    "--first-parent", "--merges", "--format=%cI", "HEAD");
 
             if (output.trim().isEmpty()) {
                 return null;
             }
 
-            // Parse ISO 8601 date (output has newline, so trim it)
-            return Instant.parse(output.trim());
+            // Parse all dates and find the oldest (minimum)
+            String[] dates = output.trim().split("\n");
+            Instant oldest = null;
+            for (String dateStr : dates) {
+                if (!dateStr.trim().isEmpty()) {
+                    Instant date = Instant.parse(dateStr.trim());
+                    if (oldest == null || date.isBefore(oldest)) {
+                        oldest = date;
+                    }
+                }
+            }
+
+            return oldest;
         } catch (Exception e) {
             logger.error("Failed to get oldest commit date: " + e.getMessage());
             return null;
