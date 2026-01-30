@@ -1,5 +1,7 @@
 package io.quarkus.qe.test.failure.detector.analyze;
 
+import io.quarkus.runtime.annotations.RegisterForReflection;
+
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -26,6 +28,7 @@ public interface FailureHistory {
     /**
      * Data representing failure history across runs.
      */
+    @RegisterForReflection
     record HistoryData(
             Instant lastRun,
             String quarkusCommit,
@@ -65,6 +68,7 @@ public interface FailureHistory {
     /**
      * Represents a tracked failure across multiple runs.
      */
+    @RegisterForReflection
     record TrackedFailure(
             String testClassName,
             String testMethodName,
@@ -78,6 +82,7 @@ public interface FailureHistory {
         /**
          * Status of a tracked failure.
          */
+        @RegisterForReflection
         public enum FailureStatus {
             /** Failure appeared for the first time in this run */
             NEW,

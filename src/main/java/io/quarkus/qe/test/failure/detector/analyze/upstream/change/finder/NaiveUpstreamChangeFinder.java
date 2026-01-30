@@ -646,7 +646,11 @@ class NaiveUpstreamChangeFinder implements UpstreamChangeFinder {
             testedCommits.add(commit);
 
             boolean buildSuccess = buildQuarkus();
-            if (buildSuccess) {
+            if (!buildSuccess) {
+                logger.error("Build failed for commit " + commit + " - cannot complete bisect");
+                logger.error("This may indicate a build issue in Quarkus main branch at this commit");
+                logger.error("Check https://github.com/quarkusio/quarkus/commit/" + commit);
+            } else {
                 boolean testPassed = runTest(failure);
                 if (!testPassed) {
                     logger.info("Found first failing commit: " + commit);
@@ -658,6 +662,7 @@ class NaiveUpstreamChangeFinder implements UpstreamChangeFinder {
         }
 
         logger.info("Binary search completed - test passes on all tested commits, failure might be in test suite itself");
+        logger.info("Tested commits: " + String.join(", ", testedCommits));
         return new BisectResult(null, null, null, testedCommits);
     }
 
@@ -670,7 +675,18 @@ class NaiveUpstreamChangeFinder implements UpstreamChangeFinder {
             String output = runCommand(quarkusRepo, "./mvnw", "-T1C", "-DskipDocs", "-DskipTests",
                     "-DskipITs", "-Dinvoker.skip", "-DskipExtensionValidation", "-Dskip.gradle.tests",
                     "-Dskip.gradle.build", "-Dtruststore.skip","-Dno-format", "-Djbang.skip", "clean", "install");
-            return output.contains("BUILD SUCCESS");
+
+            boolean success = output.contains("BUILD SUCCESS");
+            if (!success) {
+                // Log build failure details - show last 50 lines of output
+                String[] lines = output.split("\n");
+                int startLine = Math.max(0, lines.length - 50);
+                logger.error("Build failed. Last 50 lines of output:");
+                for (int i = startLine; i < lines.length; i++) {
+                    logger.error("  " + lines[i]);
+                }
+            }
+            return success;
         } catch (Exception e) {
             logger.error("Build failed: " + e.getMessage());
             return false;

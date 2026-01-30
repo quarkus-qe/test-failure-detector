@@ -93,6 +93,30 @@ final class RootCauseReportBuilderImpl implements RootCauseReportBuilder {
                     .append(rootCause.failures().size() - rootCause.metadata().dedupedFailures())
                     .append(" primary + ").append(rootCause.metadata().dedupedFailures()).append(" deduplicated)").append(System.lineSeparator());
 
+            // Print upstream change information if available
+            if (rootCause.upstreamChange() != null) {
+                RootCause.UpstreamChange change = rootCause.upstreamChange();
+                resultBuilder.append("  Upstream Change:").append(System.lineSeparator());
+                resultBuilder.append("    Commit: ").append(change.gitCommitSHA()).append(System.lineSeparator());
+                resultBuilder.append("    GitHub: https://github.com/quarkusio/quarkus/commit/")
+                        .append(change.gitCommitSHA()).append(System.lineSeparator());
+                if (change.prNumber() != null && !change.prNumber().isBlank()) {
+                    resultBuilder.append("    PR: https://github.com/quarkusio/quarkus/pull/")
+                            .append(change.prNumber()).append(System.lineSeparator());
+                }
+                if (change.gitCommitMessage() != null && !change.gitCommitMessage().isBlank()) {
+                    String truncatedMessage = truncateMessage(change.gitCommitMessage());
+                    resultBuilder.append("    Message: ").append(truncatedMessage).append(System.lineSeparator());
+                }
+            } else {
+                resultBuilder.append("  Upstream Change: Unable to identify").append(System.lineSeparator());
+                resultBuilder.append("    This may occur when:").append(System.lineSeparator());
+                resultBuilder.append("      - Quarkus build failed (check workflow logs for build errors)").append(System.lineSeparator());
+                resultBuilder.append("      - Test failure is in the test suite itself (not upstream)").append(System.lineSeparator());
+                resultBuilder.append("      - Test passes on all tested commits within the lookback window").append(System.lineSeparator());
+                resultBuilder.append("    Check recent Quarkus commits: https://github.com/quarkusio/quarkus/commits/main").append(System.lineSeparator());
+            }
+
             resultBuilder.append("  Affected Tests:").append(System.lineSeparator());
             for (FailureDetails failure : rootCause.failures()) {
                 String marker = failure.isPrimaryFailure() ? "[PRIMARY]" : "[DEDUPED]";
