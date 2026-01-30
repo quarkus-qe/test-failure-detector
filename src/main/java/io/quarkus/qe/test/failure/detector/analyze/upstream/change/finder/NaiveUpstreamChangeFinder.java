@@ -342,23 +342,27 @@ class NaiveUpstreamChangeFinder implements UpstreamChangeFinder {
      *
      * Logic:
      * 1. Clone with depth=1 (just latest commit)
-     * 2. Deepen by 50 commits
+     * 2. Deepen by 10 commits at a time
      * 3. Check if we got new commits (compare commit count)
      * 4. Check if oldest merge commit is older than target date
      * 5. Stop when: no new commits OR oldest merge is old enough
+     *
+     * Note: --deepen=10 doesn't add exactly 10 commits. It deepens the shallow boundary,
+     * which may add more commits if there's complex branching. We stop as soon as we reach
+     * the target date, so overfetching is acceptable.
      *
      * Only checks merge commits for date comparison since individual commits may have
      * old dates from when they were created in PRs, not when they were merged.
      */
     private void deepenUntilDate(Path repoPath, Instant targetDate) {
         int iterations = 0;
-        int maxIterations = 100; // Safety limit (50 commits * 100 = 5000 commits max)
+        int maxIterations = 100; // Safety limit
         int previousCommitCount = 0;
 
         while (iterations < maxIterations) {
             // Deepen to get more commits - specify 'origin main' to deepen that specific branch
             logger.info("Deepening clone (iteration " + (iterations + 1) + ")");
-            runCommand(repoPath, "git", "fetch", "--deepen=50", "origin", "main");
+            runCommand(repoPath, "git", "fetch", "--deepen=10", "origin", "main");
             iterations++;
 
             // Count total commits on main branch (first-parent only for accurate count)
