@@ -426,9 +426,9 @@ class NaiveUpstreamChangeFinderTest {
         }
 
         @Override
-        protected boolean buildQuarkus() {
+        protected boolean buildQuarkus(String commit) {
             // Skip actual Maven build in tests
-            logger.info("Mock: Skipping Quarkus build");
+            logger.info("Mock: Skipping Quarkus build for commit " + commit);
             return true;
         }
 

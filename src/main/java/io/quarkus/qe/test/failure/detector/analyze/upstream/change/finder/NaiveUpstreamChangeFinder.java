@@ -18,6 +18,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -402,8 +403,11 @@ class NaiveUpstreamChangeFinder implements UpstreamChangeFinder {
     }
 
     /**
-     * Calculate the instant to use for shallow-since based on lookback days and from date.
-     * Uses the more recent of: configured lookback period OR last run time from history.
+     * Calculate the instant to use for cloning history.
+     * For cloning, we need to go back far enough to cover BOTH:
+     * - The configured lookback period (e.g., 5 days)
+     * - The last run time (to have commits since then)
+     * Use whichever is OLDER (further back in time) to ensure we have enough history.
      */
     private Instant calculateShallowSince() {
         // Use 'from' if configured, otherwise use current time (for tests)
@@ -411,8 +415,8 @@ class NaiveUpstreamChangeFinder implements UpstreamChangeFinder {
         Instant configuredLookback = referenceTime.minus(Duration.ofDays(lookbackDays));
 
         if (previousHistory.lastRun() != null) {
-            // Use whichever is more recent: the configured lookback or the last run
-            return configuredLookback.isAfter(previousHistory.lastRun())
+            // Use whichever is OLDER (further back) to ensure we have enough history for bisecting
+            return configuredLookback.isBefore(previousHistory.lastRun())
                     ? configuredLookback
                     : previousHistory.lastRun();
         }
@@ -517,7 +521,7 @@ class NaiveUpstreamChangeFinder implements UpstreamChangeFinder {
             testedCommits.add(commit);
 
             // Build Quarkus
-            boolean buildSuccess = buildQuarkus();
+            boolean buildSuccess = buildQuarkus(commit);
             if (!buildSuccess) {
                 logger.info("Build failed for commit " + commit + ", skipping");
                 continue;
@@ -574,7 +578,7 @@ class NaiveUpstreamChangeFinder implements UpstreamChangeFinder {
             testedCommits.add(commit);
 
             // Build Quarkus
-            boolean buildSuccess = buildQuarkus();
+            boolean buildSuccess = buildQuarkus(commit);
             if (!buildSuccess) {
                 logger.info("Build failed for commit " + commit);
                 buildFailureCount++;
@@ -607,7 +611,7 @@ class NaiveUpstreamChangeFinder implements UpstreamChangeFinder {
                 runCommand(quarkusRepo, "git", "checkout", commit);
                 testedCommits.add(commit);
 
-                buildSuccess = buildQuarkus();
+                buildSuccess = buildQuarkus(commit);
                 if (!buildSuccess) {
                     logger.info("Adjacent commit also failed to build, narrowing range");
                     low = mid - 1;
@@ -646,7 +650,7 @@ class NaiveUpstreamChangeFinder implements UpstreamChangeFinder {
             runCommand(quarkusRepo, "git", "checkout", commit);
             testedCommits.add(commit);
 
-            boolean buildSuccess = buildQuarkus();
+            boolean buildSuccess = buildQuarkus(commit);
             if (!buildSuccess) {
                 logger.error("Build failed for commit " + commit + " - cannot complete bisect");
                 logger.error("This may indicate a build issue in Quarkus main branch at this commit");
@@ -674,7 +678,7 @@ class NaiveUpstreamChangeFinder implements UpstreamChangeFinder {
     /**
      * Build Quarkus with quick profile.
      */
-    protected boolean buildQuarkus() {
+    protected boolean buildQuarkus(String commit) {
         logger.info("Building Quarkus with './mvnw -T1C ...'");
 
         ProcessBuilder pb = new ProcessBuilder("./mvnw", "-T1C", "-DskipDocs", "-DskipTests",
@@ -699,37 +703,44 @@ class NaiveUpstreamChangeFinder implements UpstreamChangeFinder {
             boolean success = (exitCode == 0);
 
             if (!success) {
+                // Save full build log to file for debugging
+                String logFileName = "quarkus-build-failed-" + commit.substring(0, 8) + ".log";
+                Path logFile = Paths.get(logFileName);
+                try {
+                    Files.writeString(logFile, output.toString());
+                    logger.error("Full build log saved to: " + logFile.toAbsolutePath());
+                } catch (IOException e) {
+                    logger.error("Failed to save build log: " + e.getMessage());
+                }
+
                 // Extract and log the actual error
                 logger.error("============ BUILD FAILED (exit code: " + exitCode + ") ============");
 
-                // Look for compilation errors
                 String[] lines = output.toString().split("\n");
-                boolean inErrorSection = false;
-                int errorLinesShown = 0;
 
-                for (String line : lines) {
-                    // Detect error sections
-                    if (line.contains("[ERROR]") || line.contains("BUILD FAILURE") ||
-                        line.contains("COMPILATION ERROR") || line.contains("Failed to execute")) {
-                        inErrorSection = true;
-                    }
-
-                    // Show error lines
-                    if (inErrorSection && errorLinesShown < 100) {
-                        logger.error(line);
-                        errorLinesShown++;
-                    }
-
-                    // Stop at build summary
-                    if (line.contains("BUILD FAILURE") && errorLinesShown > 0) {
-                        break;
+                // Strategy: Find "[ERROR]" lines and show context around them
+                // Maven typically shows errors with [ERROR] prefix
+                List<Integer> errorLineIndices = new ArrayList<>();
+                for (int i = 0; i < lines.length; i++) {
+                    if (lines[i].contains("[ERROR]")) {
+                        errorLineIndices.add(i);
                     }
                 }
 
-                // If we didn't find specific errors, show last 30 lines
-                if (errorLinesShown == 0) {
-                    logger.error("No specific error found in output. Last 30 lines:");
-                    int startLine = Math.max(0, lines.length - 30);
+                if (!errorLineIndices.isEmpty()) {
+                    // Show all [ERROR] lines with 2 lines of context before and after
+                    logger.error("Maven errors:");
+                    for (Integer errorIndex : errorLineIndices) {
+                        int start = Math.max(0, errorIndex - 2);
+                        int end = Math.min(lines.length - 1, errorIndex + 2);
+                        for (int i = start; i <= end; i++) {
+                            logger.error(lines[i]);
+                        }
+                    }
+                } else {
+                    // No [ERROR] lines found, show last 50 lines
+                    logger.error("No [ERROR] markers found in Maven output. Last 50 lines:");
+                    int startLine = Math.max(0, lines.length - 50);
                     for (int i = startLine; i < lines.length; i++) {
                         logger.error(lines[i]);
                     }
