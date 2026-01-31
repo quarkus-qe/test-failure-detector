@@ -213,7 +213,7 @@ mvn test
 mvn clean package
 ```
 
-IMPORTANT: I had a bug in that script, if it doesn't delect the workflow on the first attempt, just try again until the workflow is deleted.
+**IMPORTANT**: I had a bug in that script, if it doesn't deleTE the workflow on the first attempt, just try again until the workflow is deleted.
 
 ## Creating a Release
 
