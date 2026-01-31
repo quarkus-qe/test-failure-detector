@@ -314,6 +314,84 @@ class NaiveUpstreamChangeFinderTest {
     }
 
     /**
+     * Test that bisect returns null when oldest commit already fails (binary search).
+     * This prevents incorrectly blaming the oldest commit when the failure was
+     * introduced before the lookback range.
+     */
+    @Test
+    void testBinarySearchReturnsNullWhenOldestCommitFails(@TempDir Path tempDir) throws Exception {
+        Path testRepo = copyTestRepo(tempDir);
+
+        HistoryData emptyHistory = HistoryData.empty();
+        MockFailureHistory mockHistory = new MockFailureHistory(emptyHistory);
+
+        MockFailure mockFailure = new MockFailure(
+                "io.quarkus.test.AlwaysFailingTest",
+                "testAlwaysFails",
+                tempDir.resolve("module").toString()
+        );
+
+        // Create a finder that always returns test failure
+        AlwaysFailingMockFinder finder = new AlwaysFailingMockFinder(
+                logger,
+                mockHistory,
+                testRepo
+        );
+        finder.setBisectStrategy(AppConfig.BisectStrategy.BINARY);
+
+        // Should return null because oldest commit already fails
+        RootCause.UpstreamChange change = finder.findUpstreamChange(mockFailure);
+
+        assertNull(change, "Should return null when oldest commit fails (cannot determine culprit)");
+        logger.info("Correctly returned null when oldest commit failed");
+
+        finder.finalizeAndSaveHistory(new OnCommandExit());
+
+        // Verify history shows failure but without upstream commit
+        HistoryData saved = mockHistory.load();
+        assertEquals(1, saved.failures().size(), "Should have one tracked failure");
+        assertNull(saved.failures().get(0).upstreamCommit(), "Should not have upstream commit");
+    }
+
+    /**
+     * Test that bisect returns null when oldest commit already fails (linear search).
+     */
+    @Test
+    void testLinearSearchReturnsNullWhenOldestCommitFails(@TempDir Path tempDir) throws Exception {
+        Path testRepo = copyTestRepo(tempDir);
+
+        HistoryData emptyHistory = HistoryData.empty();
+        MockFailureHistory mockHistory = new MockFailureHistory(emptyHistory);
+
+        MockFailure mockFailure = new MockFailure(
+                "io.quarkus.test.AlwaysFailingTest",
+                "testAlwaysFails",
+                tempDir.resolve("module").toString()
+        );
+
+        // Create a finder that always returns test failure
+        AlwaysFailingMockFinder finder = new AlwaysFailingMockFinder(
+                logger,
+                mockHistory,
+                testRepo
+        );
+        finder.setBisectStrategy(AppConfig.BisectStrategy.LINEAR);
+
+        // Should return null because oldest commit already fails
+        RootCause.UpstreamChange change = finder.findUpstreamChange(mockFailure);
+
+        assertNull(change, "Should return null when oldest commit fails (cannot determine culprit)");
+        logger.info("Correctly returned null when oldest commit failed");
+
+        finder.finalizeAndSaveHistory(new OnCommandExit());
+
+        // Verify history shows failure but without upstream commit
+        HistoryData saved = mockHistory.load();
+        assertEquals(1, saved.failures().size(), "Should have one tracked failure");
+        assertNull(saved.failures().get(0).upstreamCommit(), "Should not have upstream commit");
+    }
+
+    /**
      * Test that binary search tests fewer commits than linear.
      */
     @Test
@@ -451,6 +529,40 @@ class NaiveUpstreamChangeFinderTest {
             }
             // Default: test passes
             return true;
+        }
+    }
+
+    /**
+     * Mock finder that always returns test failure.
+     * Used to test the scenario where all commits in the range fail.
+     */
+    @Vetoed
+    private static class AlwaysFailingMockFinder extends NaiveUpstreamChangeFinder {
+
+        AlwaysFailingMockFinder(Logger logger, FailureHistory failureHistory, Path mockRepo) {
+            super(logger, failureHistory);
+            this.lookbackDays = Integer.MAX_VALUE;
+            this.from = Instant.now();
+            this.bisectStrategy = AppConfig.BisectStrategy.BINARY;
+            this.quarkusRepoPath = mockRepo;
+            this.testSuiteRepoPath = mockRepo;
+        }
+
+        void setBisectStrategy(AppConfig.BisectStrategy strategy) {
+            this.bisectStrategy = strategy;
+        }
+
+        @Override
+        protected boolean buildQuarkus(String commit) {
+            logger.info("Mock: Skipping Quarkus build for commit " + commit);
+            return true;
+        }
+
+        @Override
+        protected boolean runTest(Failure failure) {
+            // Always return false to simulate all commits failing
+            logger.info("Mock test FAILED (always failing scenario)");
+            return false;
         }
     }
 

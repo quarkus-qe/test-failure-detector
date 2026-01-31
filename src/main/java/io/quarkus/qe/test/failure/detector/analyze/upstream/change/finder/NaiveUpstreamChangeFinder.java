@@ -565,6 +565,7 @@ class NaiveUpstreamChangeFinder implements UpstreamChangeFinder {
         // Start from the oldest commit (last in list) and work forward
         for (int i = commitsToTest.size() - 1; i >= 0; i--) {
             String commit = commitsToTest.get(i);
+            boolean isOldestCommit = (i == commitsToTest.size() - 1);
             logger.info("Testing commit " + (commitsToTest.size() - i) + "/" + commitsToTest.size() + ": " + commit);
 
             // Checkout commit
@@ -575,6 +576,13 @@ class NaiveUpstreamChangeFinder implements UpstreamChangeFinder {
             boolean buildSuccess = buildQuarkus(commit);
             if (!buildSuccess) {
                 logger.info("Build failed for commit " + commit + ", skipping");
+                // If the oldest commit fails to build, we cannot establish a baseline
+                if (isOldestCommit) {
+                    logger.error("Oldest commit failed to build - cannot establish baseline");
+                    logger.error("The failure may have been introduced before our lookback range, or there's a build issue");
+                    logger.error("Consider increasing the lookback period or checking commits before " + commit);
+                    return new BisectResult(null, null, null, testedCommits);
+                }
                 continue;
             }
 
@@ -582,6 +590,15 @@ class NaiveUpstreamChangeFinder implements UpstreamChangeFinder {
             boolean testPassed = runTest(failure);
 
             if (!testPassed) {
+                // If this is the oldest commit, and it fails, we cannot determine when failure was introduced
+                if (isOldestCommit) {
+                    logger.error("Test FAILED at oldest commit: " + commit);
+                    logger.error("Cannot determine failure-introducing commit - failure exists at oldest commit in range");
+                    logger.error("The failure was likely introduced BEFORE our lookback range");
+                    logger.error("Consider increasing the lookback period or checking commits before " + commit);
+                    return new BisectResult(null, null, null, testedCommits);
+                }
+
                 // Found the first failing commit
                 logger.info("Test failed at commit: " + commit);
                 String pullRequest = findPullRequest(commit);
@@ -620,6 +637,36 @@ class NaiveUpstreamChangeFinder implements UpstreamChangeFinder {
         Map<String, Boolean> commitTestResults = new HashMap<>();
 
         logger.info("Binary search range: " + commitsToTest.size() + " commits");
+
+        // VALIDATION: Test the oldest commit first to ensure we have a known-good baseline
+        // If the oldest commit in our range also fails, we cannot determine when the failure
+        // was introduced - it could be from before our lookback range
+        logger.info("Validating oldest commit in range to establish known-good baseline");
+        String oldestCommit = commitsToTest.get(low);
+        logger.info("Testing oldest commit at index " + low + ": " + oldestCommit);
+
+        runCommand(quarkusRepo, "git", "checkout", oldestCommit);
+        testedCommits.add(oldestCommit);
+
+        boolean oldestBuildSuccess = buildQuarkus(oldestCommit);
+        if (!oldestBuildSuccess) {
+            logger.error("Oldest commit failed to build - cannot establish baseline");
+            logger.error("The failure may have been introduced before our lookback range, or there's a build issue");
+            logger.error("Consider increasing the lookback period or checking commits before " + oldestCommit);
+            return new BisectResult(null, null, null, testedCommits);
+        }
+
+        boolean oldestTestPassed = runTest(failure);
+        if (!oldestTestPassed) {
+            logger.error("Test FAILED at oldest commit: " + oldestCommit);
+            logger.error("Cannot determine failure-introducing commit - failure exists at oldest commit in range");
+            logger.error("The failure was likely introduced BEFORE our lookback range");
+            logger.error("Consider increasing the lookback period or checking commits before " + oldestCommit);
+            return new BisectResult(null, null, null, testedCommits);
+        }
+
+        logger.info("Test PASSED at oldest commit - proceeding with bisect");
+        commitTestResults.put(oldestCommit, true); // Cache the result
 
         while (low > high) {
             int mid = high + (low - high) / 2;
