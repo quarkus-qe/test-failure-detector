@@ -94,7 +94,7 @@ final class RootCauseReportBuilderImpl implements RootCauseReportBuilder {
                     .append(" primary + ").append(rootCause.metadata().dedupedFailures()).append(" deduplicated)").append(System.lineSeparator());
 
             // Print upstream change information if available
-            if (rootCause.upstreamChange() != null) {
+            if (rootCause.upstreamChange() != null && rootCause.upstreamChange().gitCommitSHA() != null) {
                 RootCause.UpstreamChange change = rootCause.upstreamChange();
                 resultBuilder.append("  Upstream Change:").append(System.lineSeparator());
                 resultBuilder.append("    Commit: ").append(change.gitCommitSHA()).append(System.lineSeparator());
@@ -108,13 +108,36 @@ final class RootCauseReportBuilderImpl implements RootCauseReportBuilder {
                     String truncatedMessage = truncateMessage(change.gitCommitMessage());
                     resultBuilder.append("    Message: ").append(truncatedMessage).append(System.lineSeparator());
                 }
+            } else if (rootCause.upstreamChange() != null) {
+                // We have an UpstreamChange but no commit - check the failure reason
+                RootCause.FailureReason reason = rootCause.upstreamChange().failureReason();
+                switch (reason) {
+                    case CANNOT_REPRODUCE -> {
+                        resultBuilder.append("  Upstream Change: Cannot reproduce the failure").append(System.lineSeparator());
+                        resultBuilder.append("    Test passed on all tested Quarkus commits (oldest to newest)").append(System.lineSeparator());
+                        resultBuilder.append("    This indicates:").append(System.lineSeparator());
+                        resultBuilder.append("      - Test is flaky (intermittent failure)").append(System.lineSeparator());
+                        resultBuilder.append("      - Environmental differences between test suite run and bisect environment").append(System.lineSeparator());
+                    }
+                    case BUILD_FAILED -> {
+                        resultBuilder.append("  Upstream Change: Unable to identify").append(System.lineSeparator());
+                        resultBuilder.append("    Quarkus build failed during bisect").append(System.lineSeparator());
+                        resultBuilder.append("    Check workflow logs for build errors").append(System.lineSeparator());
+                    }
+                    case OLDEST_COMMIT_FAILED -> {
+                        resultBuilder.append("  Upstream Change: Unable to identify").append(System.lineSeparator());
+                        resultBuilder.append("    Test failed on oldest commit in lookback window").append(System.lineSeparator());
+                        resultBuilder.append("    Failure was likely introduced before the lookback range").append(System.lineSeparator());
+                        resultBuilder.append("    Consider increasing the lookback period").append(System.lineSeparator());
+                    }
+                    default -> {
+                        resultBuilder.append("  Upstream Change: Unable to identify").append(System.lineSeparator());
+                        resultBuilder.append("    Check recent Quarkus commits: https://github.com/quarkusio/quarkus/commits/main").append(System.lineSeparator());
+                    }
+                }
             } else {
-                resultBuilder.append("  Upstream Change: Unable to identify").append(System.lineSeparator());
-                resultBuilder.append("    This may occur when:").append(System.lineSeparator());
-                resultBuilder.append("      - Quarkus build failed (check workflow logs for build errors)").append(System.lineSeparator());
-                resultBuilder.append("      - Test failure is in the test suite itself (not upstream)").append(System.lineSeparator());
-                resultBuilder.append("      - Test passes on all tested commits within the lookback window").append(System.lineSeparator());
-                resultBuilder.append("    Check recent Quarkus commits: https://github.com/quarkusio/quarkus/commits/main").append(System.lineSeparator());
+                // No UpstreamChange at all (shouldn't happen, but handle it)
+                resultBuilder.append("  Upstream Change: Not analyzed").append(System.lineSeparator());
             }
 
             resultBuilder.append("  Affected Tests:").append(System.lineSeparator());

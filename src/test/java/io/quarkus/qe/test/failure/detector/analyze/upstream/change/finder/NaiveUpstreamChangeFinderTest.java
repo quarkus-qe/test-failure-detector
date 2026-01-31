@@ -339,11 +339,14 @@ class NaiveUpstreamChangeFinderTest {
         );
         finder.setBisectStrategy(AppConfig.BisectStrategy.BINARY);
 
-        // Should return null because oldest commit already fails
+        // Should return UpstreamChange with OLDEST_COMMIT_FAILED reason
         RootCause.UpstreamChange change = finder.findUpstreamChange(mockFailure);
 
-        assertNull(change, "Should return null when oldest commit fails (cannot determine culprit)");
-        logger.info("Correctly returned null when oldest commit failed");
+        assertNotNull(change, "Should return UpstreamChange with failure reason");
+        assertNull(change.gitCommitSHA(), "Should not have commit SHA");
+        assertEquals(RootCause.FailureReason.OLDEST_COMMIT_FAILED, change.failureReason(),
+                "Should indicate oldest commit failed");
+        logger.info("Correctly returned OLDEST_COMMIT_FAILED when oldest commit failed");
 
         finder.finalizeAndSaveHistory(new OnCommandExit());
 
@@ -354,7 +357,7 @@ class NaiveUpstreamChangeFinderTest {
     }
 
     /**
-     * Test that bisect returns null when oldest commit already fails (linear search).
+     * Test that bisect returns OLDEST_COMMIT_FAILED when oldest commit already fails (linear search).
      */
     @Test
     void testLinearSearchReturnsNullWhenOldestCommitFails(@TempDir Path tempDir) throws Exception {
@@ -377,11 +380,14 @@ class NaiveUpstreamChangeFinderTest {
         );
         finder.setBisectStrategy(AppConfig.BisectStrategy.LINEAR);
 
-        // Should return null because oldest commit already fails
+        // Should return UpstreamChange with OLDEST_COMMIT_FAILED reason
         RootCause.UpstreamChange change = finder.findUpstreamChange(mockFailure);
 
-        assertNull(change, "Should return null when oldest commit fails (cannot determine culprit)");
-        logger.info("Correctly returned null when oldest commit failed");
+        assertNotNull(change, "Should return UpstreamChange with failure reason");
+        assertNull(change.gitCommitSHA(), "Should not have commit SHA");
+        assertEquals(RootCause.FailureReason.OLDEST_COMMIT_FAILED, change.failureReason(),
+                "Should indicate oldest commit failed");
+        logger.info("Correctly returned OLDEST_COMMIT_FAILED when oldest commit failed");
 
         finder.finalizeAndSaveHistory(new OnCommandExit());
 

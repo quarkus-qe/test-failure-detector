@@ -117,7 +117,8 @@ class NaiveUpstreamChangeFinder implements UpstreamChangeFinder {
                 upstreamChange = new RootCause.UpstreamChange(
                         previous.upstreamCommit(),
                         previous.upstreamPullRequest(),
-                        commitMessage
+                        commitMessage,
+                        RootCause.FailureReason.FOUND
                 );
             }
         } else {
@@ -143,11 +144,13 @@ class NaiveUpstreamChangeFinder implements UpstreamChangeFinder {
                 upstreamChange = new RootCause.UpstreamChange(
                         result.commit(),
                         result.pullRequest(),
-                        result.commitMessage()
+                        result.commitMessage(),
+                        RootCause.FailureReason.FOUND
                 );
                 testedCommitsThisSession.addAll(result.testedCommits());
             } else {
-                logger.info("Could not identify upstream commit for failure");
+                logger.info("Could not identify upstream commit for failure - reason: " + result.reason());
+                upstreamChange = new RootCause.UpstreamChange(null, null, null, result.reason());
             }
         }
 
@@ -559,7 +562,7 @@ class NaiveUpstreamChangeFinder implements UpstreamChangeFinder {
 
         if (commitsToTest.isEmpty()) {
             logger.info("No commits to test for bisect");
-            return new BisectResult(null, null, null, testedCommits);
+            return new BisectResult(null, null, null, testedCommits, RootCause.FailureReason.CANNOT_REPRODUCE);
         }
 
         // Start from the oldest commit (last in list) and work forward
@@ -581,7 +584,7 @@ class NaiveUpstreamChangeFinder implements UpstreamChangeFinder {
                     logger.error("Oldest commit failed to build - cannot establish baseline");
                     logger.error("The failure may have been introduced before our lookback range, or there's a build issue");
                     logger.error("Consider increasing the lookback period or checking commits before " + commit);
-                    return new BisectResult(null, null, null, testedCommits);
+                    return new BisectResult(null, null, null, testedCommits, RootCause.FailureReason.BUILD_FAILED);
                 }
                 continue;
             }
@@ -596,21 +599,22 @@ class NaiveUpstreamChangeFinder implements UpstreamChangeFinder {
                     logger.error("Cannot determine failure-introducing commit - failure exists at oldest commit in range");
                     logger.error("The failure was likely introduced BEFORE our lookback range");
                     logger.error("Consider increasing the lookback period or checking commits before " + commit);
-                    return new BisectResult(null, null, null, testedCommits);
+                    return new BisectResult(null, null, null, testedCommits, RootCause.FailureReason.OLDEST_COMMIT_FAILED);
                 }
 
                 // Found the first failing commit
                 logger.info("Test failed at commit: " + commit);
                 String pullRequest = findPullRequest(commit);
                 String commitMessage = getCommitMessage(quarkusRepo, commit);
-                return new BisectResult(commit, pullRequest, commitMessage, testedCommits);
+                return new BisectResult(commit, pullRequest, commitMessage, testedCommits, RootCause.FailureReason.FOUND);
             }
 
             logger.info("Test passed at commit: " + commit);
         }
 
-        logger.info("Test passes on all commits, failure might be in test suite itself");
-        return new BisectResult(null, null, null, testedCommits);
+        logger.info("Cannot reproduce the failure - test passes on all commits (oldest to newest)");
+        logger.info("This indicates the test is flaky or has environmental dependencies");
+        return new BisectResult(null, null, null, testedCommits, RootCause.FailureReason.CANNOT_REPRODUCE);
     }
 
     /**
@@ -625,7 +629,7 @@ class NaiveUpstreamChangeFinder implements UpstreamChangeFinder {
 
         if (commitsToTest.isEmpty()) {
             logger.info("No commits to test for bisect");
-            return new BisectResult(null, null, null, testedCommits);
+            return new BisectResult(null, null, null, testedCommits, RootCause.FailureReason.CANNOT_REPRODUCE);
         }
 
         // Binary search: low = oldest (should pass), high = newest (should fail)
@@ -653,7 +657,7 @@ class NaiveUpstreamChangeFinder implements UpstreamChangeFinder {
             logger.error("Oldest commit failed to build - cannot establish baseline");
             logger.error("The failure may have been introduced before our lookback range, or there's a build issue");
             logger.error("Consider increasing the lookback period or checking commits before " + oldestCommit);
-            return new BisectResult(null, null, null, testedCommits);
+            return new BisectResult(null, null, null, testedCommits, RootCause.FailureReason.BUILD_FAILED);
         }
 
         boolean oldestTestPassed = runTest(failure);
@@ -662,7 +666,7 @@ class NaiveUpstreamChangeFinder implements UpstreamChangeFinder {
             logger.error("Cannot determine failure-introducing commit - failure exists at oldest commit in range");
             logger.error("The failure was likely introduced BEFORE our lookback range");
             logger.error("Consider increasing the lookback period or checking commits before " + oldestCommit);
-            return new BisectResult(null, null, null, testedCommits);
+            return new BisectResult(null, null, null, testedCommits, RootCause.FailureReason.OLDEST_COMMIT_FAILED);
         }
 
         logger.info("Test PASSED at oldest commit - proceeding with bisect");
@@ -687,7 +691,7 @@ class NaiveUpstreamChangeFinder implements UpstreamChangeFinder {
                         logger.info("Found first failing commit: " + commit);
                         String pullRequest = findPullRequest(commit);
                         String commitMessage = getCommitMessage(quarkusRepo, commit);
-                        return new BisectResult(commit, pullRequest, commitMessage, testedCommits);
+                        return new BisectResult(commit, pullRequest, commitMessage, testedCommits, RootCause.FailureReason.FOUND);
                     }
 
                     if (mid == high) {
@@ -766,7 +770,7 @@ class NaiveUpstreamChangeFinder implements UpstreamChangeFinder {
                     logger.info("Found first failing commit: " + commit);
                     String pullRequest = findPullRequest(commit);
                     String commitMessage = getCommitMessage(quarkusRepo, commit);
-                    return new BisectResult(commit, pullRequest, commitMessage, testedCommits);
+                    return new BisectResult(commit, pullRequest, commitMessage, testedCommits, RootCause.FailureReason.FOUND);
                 }
 
                 if (mid == high) {
@@ -794,22 +798,22 @@ class NaiveUpstreamChangeFinder implements UpstreamChangeFinder {
                 logger.error("Check https://github.com/quarkusio/quarkus/commit/" + commit);
                 logger.error("Bisect incomplete due to build failure");
                 logger.info("Tested commits: " + String.join(", ", testedCommits));
-                return new BisectResult(null, null, null, testedCommits);
+                return new BisectResult(null, null, null, testedCommits, RootCause.FailureReason.BUILD_FAILED);
             } else {
                 boolean testPassed = runTest(failure);
                 if (!testPassed) {
                     logger.info("Found first failing commit: " + commit);
                     String pullRequest = findPullRequest(commit);
                     String commitMessage = getCommitMessage(quarkusRepo, commit);
-                    return new BisectResult(commit, pullRequest, commitMessage, testedCommits);
+                    return new BisectResult(commit, pullRequest, commitMessage, testedCommits, RootCause.FailureReason.FOUND);
                 }
             }
         }
 
-        logger.info("Binary search completed - test passes on all tested commits");
-        logger.info("This suggests the failure is in the test suite itself, not in Quarkus");
+        logger.info("Cannot reproduce the failure - test passes on all tested commits (oldest to newest)");
+        logger.info("This indicates the test is flaky or has environmental dependencies");
         logger.info("Tested commits: " + String.join(", ", testedCommits));
-        return new BisectResult(null, null, null, testedCommits);
+        return new BisectResult(null, null, null, testedCommits, RootCause.FailureReason.CANNOT_REPRODUCE);
     }
 
     /**
@@ -1238,7 +1242,7 @@ class NaiveUpstreamChangeFinder implements UpstreamChangeFinder {
     /**
      * Result of git bisect operation.
      */
-    private record BisectResult(String commit, String pullRequest, String commitMessage, List<String> testedCommits) {
+    private record BisectResult(String commit, String pullRequest, String commitMessage, List<String> testedCommits, RootCause.FailureReason reason) {
         boolean foundCommit() {
             return commit != null;
         }
