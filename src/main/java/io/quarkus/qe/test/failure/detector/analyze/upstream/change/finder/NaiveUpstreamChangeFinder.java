@@ -1092,13 +1092,24 @@ class NaiveUpstreamChangeFinder implements UpstreamChangeFinder {
         }
 
         // Special handling for GitHub artifacts temp directories (github-artifacts-<uuid>)
-        // Extract everything after the temp directory name
+        // The structure is: /tmp/github-artifacts-<uuid>/artifacts-<platform>-<runtime>-<modules>/actual/module/path
+        // We need to skip both the github-artifacts directory AND the artifacts-* directory
         String[] parts = pathWithoutSuffix.split("/");
         for (int i = 0; i < parts.length; i++) {
             if (parts[i].startsWith("github-artifacts-")) {
-                // Found the temp artifacts directory, extract everything after it
+                // Found the temp artifacts directory
+                // The next part should be the artifact name (artifacts-linux-jvm21-rootmodules, etc.)
+                // We need to skip that and extract everything after it
+                int startIndex = i + 1; // Start after github-artifacts-<uuid>
+
+                // Skip the artifact directory if it starts with "artifacts-"
+                if (startIndex < parts.length && parts[startIndex].startsWith("artifacts-")) {
+                    startIndex++; // Skip the artifacts-* directory
+                }
+
+                // Extract the actual module path
                 StringBuilder modulePathBuilder = new StringBuilder();
-                for (int j = i + 1; j < parts.length; j++) {
+                for (int j = startIndex; j < parts.length; j++) {
                     if (!modulePathBuilder.isEmpty()) {
                         modulePathBuilder.append("/");
                     }
