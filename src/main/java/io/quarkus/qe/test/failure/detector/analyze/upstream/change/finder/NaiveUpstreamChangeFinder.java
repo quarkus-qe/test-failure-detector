@@ -934,7 +934,10 @@ class NaiveUpstreamChangeFinder implements UpstreamChangeFinder {
 
             // Always add Quarkus CLI test args (needed for CLI-related tests)
             mvnArgs.add("-Dinclude.quarkus-cli-tests");
-            mvnArgs.add("-Dts.quarkus.cli.cmd=" + testSuiteRepo.getParent().resolve("quarkus-dev-cli").toAbsolutePath());
+            // The quarkus-dev-cli script is created in the current working directory by the workflow
+            // Use absolute path from current working directory, not from test suite parent
+            Path quarkusCliPath = Paths.get("quarkus-dev-cli").toAbsolutePath();
+            mvnArgs.add("-Dts.quarkus.cli.cmd=" + quarkusCliPath);
 
             // Add native-specific args if this is a native test
             if (isNativeTest) {
