@@ -67,20 +67,26 @@ echo ""
 echo "Step 2: Deleting artifacts..."
 echo "------------------------------"
 
-# Get workflow run IDs, then delete their artifacts
-artifact_count=0
+# First, collect all artifact IDs (to avoid API inconsistency during deletion)
+artifact_ids=()
 while IFS= read -r run_id; do
     if [ -n "$run_id" ]; then
         # Get artifacts for this run
         while IFS= read -r artifact_id; do
             if [ -n "$artifact_id" ]; then
-                echo "  Deleting artifact ID: $artifact_id (from run $run_id)"
-                gh api --method DELETE "/repos/$REPO/actions/artifacts/$artifact_id" || echo "    Failed to delete (may already be deleted)"
-                ((artifact_count++))
+                artifact_ids+=("$artifact_id")
             fi
         done < <(gh api "/repos/$REPO/actions/runs/$run_id/artifacts?per_page=100" --jq '.artifacts[].id')
     fi
 done < <(gh api "/repos/$REPO/actions/workflows/$WORKFLOW/runs?per_page=100" --jq '.workflow_runs[].id')
+
+# Now delete all collected artifacts
+artifact_count=0
+for artifact_id in "${artifact_ids[@]}"; do
+    echo "  Deleting artifact ID: $artifact_id"
+    gh api --method DELETE "/repos/$REPO/actions/artifacts/$artifact_id" || echo "    Failed to delete (may already be deleted)"
+    ((artifact_count++))
+done
 
 echo "  Deleted $artifact_count artifacts"
 
@@ -88,15 +94,21 @@ echo ""
 echo "Step 3: Deleting workflow runs..."
 echo "----------------------------------"
 
-# Get all workflow runs and delete them
-run_count=0
+# First, collect all workflow run IDs (to avoid API inconsistency during deletion)
+run_ids=()
 while IFS= read -r run_id; do
     if [ -n "$run_id" ]; then
-        echo "  Deleting run ID: $run_id"
-        gh api --method DELETE "/repos/$REPO/actions/runs/$run_id" || echo "    Failed to delete (may already be deleted)"
-        ((run_count++))
+        run_ids+=("$run_id")
     fi
 done < <(gh api "/repos/$REPO/actions/workflows/$WORKFLOW/runs?per_page=100" --jq '.workflow_runs[].id')
+
+# Now delete all collected runs
+run_count=0
+for run_id in "${run_ids[@]}"; do
+    echo "  Deleting run ID: $run_id"
+    gh api --method DELETE "/repos/$REPO/actions/runs/$run_id" || echo "    Failed to delete (may already be deleted)"
+    ((run_count++))
+done
 
 echo "  Deleted $run_count workflow runs"
 
