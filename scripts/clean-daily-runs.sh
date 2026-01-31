@@ -51,7 +51,15 @@ cancel_count=0
 while IFS= read -r run_id; do
     if [ -n "$run_id" ]; then
         echo "  Cancelling run ID: $run_id"
-        gh run cancel "$run_id" --repo "$REPO" || echo "    Failed to cancel (may already be done)"
+        # Disable exit-on-error for this command
+        set +e
+        gh run cancel "$run_id" --repo "$REPO"
+        CANCEL_EXIT_CODE=$?
+        set -e
+
+        if [ $CANCEL_EXIT_CODE -ne 0 ]; then
+            echo "    Warning: Failed to cancel run $run_id (may already be cancelled)"
+        fi
         ((cancel_count++))
     fi
 done < <(gh run list --workflow="$WORKFLOW" --repo "$REPO" --status in_progress --json databaseId --jq '.[].databaseId')
@@ -97,7 +105,15 @@ echo "  Found ${#artifact_ids[@]} artifact(s) to delete"
 artifact_count=0
 for artifact_id in "${artifact_ids[@]}"; do
     echo "  Deleting artifact ID: $artifact_id"
-    gh api --method DELETE "/repos/$REPO/actions/artifacts/$artifact_id" || echo "    Failed to delete (may already be deleted)"
+    # Disable exit-on-error for this command
+    set +e
+    gh api --method DELETE "/repos/$REPO/actions/artifacts/$artifact_id"
+    DELETE_EXIT_CODE=$?
+    set -e
+
+    if [ $DELETE_EXIT_CODE -ne 0 ]; then
+        echo "    Warning: Failed to delete artifact $artifact_id (may already be deleted)"
+    fi
     ((artifact_count++))
 done
 
@@ -122,7 +138,15 @@ echo "  Found ${#delete_run_ids[@]} workflow run(s) to delete"
 run_count=0
 for run_id in "${delete_run_ids[@]}"; do
     echo "  Deleting run ID: $run_id"
-    gh api --method DELETE "/repos/$REPO/actions/runs/$run_id" || echo "    Failed to delete (may already be deleted)"
+    # Disable exit-on-error for this command
+    set +e
+    gh api --method DELETE "/repos/$REPO/actions/runs/$run_id"
+    DELETE_EXIT_CODE=$?
+    set -e
+
+    if [ $DELETE_EXIT_CODE -ne 0 ]; then
+        echo "    Warning: Failed to delete run $run_id (may already be deleted)"
+    fi
     ((run_count++))
 done
 
