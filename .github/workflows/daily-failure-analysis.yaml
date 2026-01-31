@@ -145,12 +145,19 @@ jobs:
         echo "Found previous run: $PREVIOUS_RUN"
 
         # Download the history artifact from that run
+        # Note: The artifact name includes the run number, so we need to find it
         gh run download "$PREVIOUS_RUN" \
-          --name failure-analysis-history \
+          --pattern 'failure-analysis-history-*' \
           --dir . || {
           echo "Failed to download history artifact, starting fresh"
           exit 0
         }
+
+        # The artifact is downloaded into a subdirectory, move it up
+        if [ -d failure-analysis-history-* ]; then
+          mv failure-analysis-history-*/failure-history.json . 2>/dev/null || true
+          rm -rf failure-analysis-history-*
+        fi
 
         if [ -f failure-history.json ]; then
           echo "Successfully downloaded history file"
@@ -246,7 +253,7 @@ jobs:
       uses: actions/upload-artifact@v4
       if: always() && hashFiles('failure-history.json') != ''
       with:
-        name: failure-analysis-history
+        name: failure-analysis-history-${{ github.run_number }}
         path: failure-history.json
         retention-days: 5
 
