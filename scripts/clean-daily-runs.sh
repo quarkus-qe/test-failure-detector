@@ -60,7 +60,7 @@ while IFS= read -r run_id; do
         if [ $CANCEL_EXIT_CODE -ne 0 ]; then
             echo "    Warning: Failed to cancel run $run_id (may already be cancelled)"
         fi
-        ((cancel_count++))
+        cancel_count=$((cancel_count + 1))
     fi
 done < <(gh run list --workflow="$WORKFLOW" --repo "$REPO" --status in_progress --json databaseId --jq '.[].databaseId')
 
@@ -147,7 +147,7 @@ for run_id in "${delete_run_ids[@]}"; do
     if [ $DELETE_EXIT_CODE -ne 0 ]; then
         echo "    Warning: Failed to delete run $run_id (may already be deleted)"
     fi
-    ((run_count++))
+    run_count=$((run_count + 1))
 done
 
 echo "  Deleted $run_count workflow runs"
