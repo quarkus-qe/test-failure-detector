@@ -114,7 +114,7 @@ for artifact_id in "${artifact_ids[@]}"; do
     if [ $DELETE_EXIT_CODE -ne 0 ]; then
         echo "    Warning: Failed to delete artifact $artifact_id (may already be deleted)"
     fi
-    ((artifact_count++))
+    artifact_count=$((artifact_count + 1))
 done
 
 echo "  Deleted $artifact_count artifacts"

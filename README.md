@@ -198,7 +198,7 @@ test-failure-detector LOCAL_DIRECTORY path/to/quarkus-test-framework/examples/ta
 
 ## Development
 
-For development workflows, debugging, and cleaning up test data, see **[DEVELOPMENT.md](DEVELOPMENT.md)**.
+For development workflows, debugging, and cleaning up test data.
 
 **Quick reference**:
 
@@ -212,6 +212,8 @@ mvn test
 # Build locally
 mvn clean package
 ```
+
+IMPORTANT: I had a bug in that script, if it doesn't delect the workflow on the first attempt, just try again until the workflow is deleted.
 
 ## Creating a Release
 
